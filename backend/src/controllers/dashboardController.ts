@@ -6,7 +6,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
   try {
     const magasinId = req.user?.magasinId;
 
-    // CA du jour (exclure les ventes à crédit et les chèques non payés)
+    // CA BRUT du jour (revenus uniquement, exclure les ventes à crédit et les chèques non payés)
     // Inclure les paiements de crédit (sauf par chèque), les paiements de chèques
     // Les chèques (mode_paiement='cheque') ont toujours montant_ht=0, donc on les exclut
     // Les paiements de crédit par chèque (type_document='paiement_credit' ET mode_paiement='cheque') sont aussi exclus
@@ -17,35 +17,132 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
        WHERE magasin_id = $1 
        AND DATE(date_vente) = CURRENT_DATE
        AND statut = 'valide'
+       AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
             OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
       [magasinId]
     );
 
-    // CA de la semaine (exclure les ventes à crédit et les chèques non payés)
+    // DÉPENSES du jour
+    const depensesJour = await pool.query(
+      `SELECT COALESCE(SUM(montant_ttc), 0) as total, COUNT(*) as nb_depenses
+       FROM ventes
+       WHERE magasin_id = $1 
+       AND DATE(date_vente) = CURRENT_DATE
+       AND statut = 'valide'
+       AND type_document = 'depense'`,
+      [magasinId]
+    );
+
+    // CA NET du jour = CA brut - Dépenses
+    const caNetJour = parseFloat(caJour.rows[0].total) - parseFloat(depensesJour.rows[0].total);
+
+    // CA BRUT de la semaine (revenus uniquement)
     const caSemaine = await pool.query(
       `SELECT COALESCE(SUM(montant_ttc), 0) as total
        FROM ventes
        WHERE magasin_id = $1 
        AND date_vente >= DATE_TRUNC('week', CURRENT_DATE)
        AND statut = 'valide'
+       AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
             OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
       [magasinId]
     );
 
-    // CA du mois (exclure les ventes à crédit et les chèques non payés)
+    // DÉPENSES de la semaine
+    const depensesSemaine = await pool.query(
+      `SELECT COALESCE(SUM(montant_ttc), 0) as total
+       FROM ventes
+       WHERE magasin_id = $1 
+       AND date_vente >= DATE_TRUNC('week', CURRENT_DATE)
+       AND statut = 'valide'
+       AND type_document = 'depense'`,
+      [magasinId]
+    );
+
+    // CA NET de la semaine = CA brut - Dépenses
+    const caNetSemaine = parseFloat(caSemaine.rows[0].total) - parseFloat(depensesSemaine.rows[0].total);
+
+    // CA BRUT du mois (revenus uniquement)
     const caMois = await pool.query(
       `SELECT COALESCE(SUM(montant_ttc), 0) as total
        FROM ventes
        WHERE magasin_id = $1 
        AND DATE_TRUNC('month', date_vente) = DATE_TRUNC('month', CURRENT_DATE)
        AND statut = 'valide'
+       AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
             OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
+      [magasinId]
+    );
+
+    // DÉPENSES du mois
+    const depensesMois = await pool.query(
+      `SELECT COALESCE(SUM(montant_ttc), 0) as total
+       FROM ventes
+       WHERE magasin_id = $1 
+       AND DATE_TRUNC('month', date_vente) = DATE_TRUNC('month', CURRENT_DATE)
+       AND statut = 'valide'
+       AND type_document = 'depense'`,
+      [magasinId]
+    );
+
+    // CA NET du mois = CA brut - Dépenses
+    const caNetMois = parseFloat(caMois.rows[0].total) - parseFloat(depensesMois.rows[0].total);
+
+    // Panier moyen du jour
+    const panierMoyenJour = parseInt(caJour.rows[0].nb_ventes) > 0 
+      ? parseFloat(caJour.rows[0].total) / parseInt(caJour.rows[0].nb_ventes) 
+      : 0;
+
+    // Panier moyen du mois
+    const caMoisAvecNb = await pool.query(
+      `SELECT COALESCE(SUM(montant_ttc), 0) as total, COUNT(*) as nb_ventes
+       FROM ventes
+       WHERE magasin_id = $1 
+       AND DATE_TRUNC('month', date_vente) = DATE_TRUNC('month', CURRENT_DATE)
+       AND statut = 'valide'
+       AND type_document != 'depense'
+       AND (type_document = 'paiement_cheque'
+            OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
+            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
+      [magasinId]
+    );
+    const panierMoyenMois = parseInt(caMoisAvecNb.rows[0].nb_ventes) > 0
+      ? parseFloat(caMoisAvecNb.rows[0].total) / parseInt(caMoisAvecNb.rows[0].nb_ventes)
+      : 0;
+
+    // Nombre total de clients
+    const totalClients = await pool.query(
+      `SELECT COUNT(*) as total FROM clients WHERE magasin_id = $1`,
+      [magasinId]
+    );
+
+    // Nombre total de produits actifs
+    const totalProduits = await pool.query(
+      `SELECT COUNT(*) as total FROM produits WHERE magasin_id = $1 AND actif = true`,
+      [magasinId]
+    );
+
+    // Valeur totale du stock
+    const valeurStock = await pool.query(
+      `SELECT COALESCE(SUM(stock_actuel * COALESCE(prix_achat, prix_vente * 0.7)), 0) as valeur_totale
+       FROM produits
+       WHERE magasin_id = $1 AND actif = true`,
+      [magasinId]
+    );
+
+    // Nombre de ventes annulées du mois
+    const ventesAnnulees = await pool.query(
+      `SELECT COUNT(*) as total
+       FROM ventes
+       WHERE magasin_id = $1
+       AND DATE_TRUNC('month', date_vente) = DATE_TRUNC('month', CURRENT_DATE)
+       AND statut = 'annule'`,
       [magasinId]
     );
 
@@ -68,26 +165,12 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
       [magasinId]
     );
 
-    const produitsPeremption = await pool.query(
-      `SELECT id, nom, date_peremption
-       FROM produits
-       WHERE magasin_id = $1 
-       AND date_peremption IS NOT NULL 
-       AND date_peremption BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
-       AND actif = true
-       ORDER BY date_peremption ASC
-       LIMIT 10`,
-      [magasinId]
-    );
-
     const alertes = {
       rupture: produitsRupture.rows.length,
       seuil_minimum: produitsSeuilMinimum.rows.length,
-      peremption: produitsPeremption.rows.length,
       details: {
         rupture: produitsRupture.rows,
         seuil_minimum: produitsSeuilMinimum.rows,
-        peremption: produitsPeremption.rows,
       }
     };
 
@@ -109,38 +192,108 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
       [magasinId]
     );
 
-    // Évolution des ventes (7 derniers jours) - exclure les ventes à crédit et les chèques non payés
-    const evolution = await pool.query(
+    // Évolution des ventes (7 derniers jours) - CA brut et dépenses séparés pour calculer CA net
+    const evolutionBrut = await pool.query(
       `SELECT 
         DATE(date_vente) as date,
         COUNT(*) as nb_ventes,
-        COALESCE(SUM(montant_ttc), 0) as ca
+        COALESCE(SUM(montant_ttc), 0) as ca_brut
        FROM ventes
        WHERE magasin_id = $1
-       AND date_vente >= CURRENT_DATE - INTERVAL '7 days'
-       AND statut = 'valide'
-       AND (type_document = 'paiement_cheque'
-            OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))
+      AND date_vente >= CURRENT_DATE - INTERVAL '7 days'
+      AND statut = 'valide'
+      AND type_document != 'depense'
+      AND (type_document = 'paiement_cheque'
+           OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
+           OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))
        GROUP BY DATE(date_vente)
        ORDER BY date ASC`,
       [magasinId]
     );
 
-    // CA d'hier pour comparaison
+    const evolutionDepenses = await pool.query(
+      `SELECT 
+        DATE(date_vente) as date,
+        COALESCE(SUM(montant_ttc), 0) as depenses
+       FROM ventes
+       WHERE magasin_id = $1
+      AND date_vente >= CURRENT_DATE - INTERVAL '7 days'
+      AND statut = 'valide'
+      AND type_document = 'depense'
+       GROUP BY DATE(date_vente)
+       ORDER BY date ASC`,
+      [magasinId]
+    );
+
+    // Combiner les données pour calculer le CA net par jour
+    const evolutionMap = new Map<string, any>();
+    evolutionBrut.rows.forEach((row: any) => {
+      // Convertir la date en string pour la clé de la Map
+      const dateKey = row.date instanceof Date 
+        ? row.date.toISOString().split('T')[0] 
+        : String(row.date);
+      evolutionMap.set(dateKey, {
+        date: dateKey,
+        nb_ventes: parseInt(row.nb_ventes || 0),
+        ca_brut: parseFloat(row.ca_brut || 0),
+        depenses: 0,
+        ca: parseFloat(row.ca_brut || 0), // CA net = CA brut pour l'instant
+      });
+    });
+    evolutionDepenses.rows.forEach((row: any) => {
+      // Convertir la date en string pour la clé de la Map
+      const dateKey = row.date instanceof Date 
+        ? row.date.toISOString().split('T')[0] 
+        : String(row.date);
+      const existing = evolutionMap.get(dateKey);
+      const depensesValue = parseFloat(row.depenses || 0);
+      if (existing) {
+        existing.depenses = depensesValue;
+        existing.ca = existing.ca_brut - depensesValue; // CA net
+      } else {
+        evolutionMap.set(dateKey, {
+          date: dateKey,
+          nb_ventes: 0,
+          ca_brut: 0,
+          depenses: depensesValue,
+          ca: -depensesValue, // CA net négatif si seulement dépenses
+        });
+      }
+    });
+
+    const evolution = Array.from(evolutionMap.values()).sort((a: any, b: any) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // CA BRUT d'hier pour comparaison
     const caHier = await pool.query(
       `SELECT COALESCE(SUM(montant_ttc), 0) as total
        FROM ventes
        WHERE magasin_id = $1 
        AND DATE(date_vente) = CURRENT_DATE - INTERVAL '1 day'
        AND statut = 'valide'
+       AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
             OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
       [magasinId]
     );
 
-    // CA de la semaine dernière pour comparaison
+    // DÉPENSES d'hier
+    const depensesHier = await pool.query(
+      `SELECT COALESCE(SUM(montant_ttc), 0) as total
+       FROM ventes
+       WHERE magasin_id = $1 
+       AND DATE(date_vente) = CURRENT_DATE - INTERVAL '1 day'
+       AND statut = 'valide'
+       AND type_document = 'depense'`,
+      [magasinId]
+    );
+
+    // CA NET d'hier = CA brut - Dépenses
+    const caNetHier = parseFloat(caHier.rows[0].total) - parseFloat(depensesHier.rows[0].total);
+
+    // CA BRUT de la semaine dernière pour comparaison
     const caSemaineDerniere = await pool.query(
       `SELECT COALESCE(SUM(montant_ttc), 0) as total
        FROM ventes
@@ -148,11 +301,27 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
        AND date_vente >= DATE_TRUNC('week', CURRENT_DATE) - INTERVAL '1 week'
        AND date_vente < DATE_TRUNC('week', CURRENT_DATE)
        AND statut = 'valide'
+       AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
             OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
       [magasinId]
     );
+
+    // DÉPENSES de la semaine dernière
+    const depensesSemaineDerniere = await pool.query(
+      `SELECT COALESCE(SUM(montant_ttc), 0) as total
+       FROM ventes
+       WHERE magasin_id = $1 
+       AND date_vente >= DATE_TRUNC('week', CURRENT_DATE) - INTERVAL '1 week'
+       AND date_vente < DATE_TRUNC('week', CURRENT_DATE)
+       AND statut = 'valide'
+       AND type_document = 'depense'`,
+      [magasinId]
+    );
+
+    // CA NET de la semaine dernière = CA brut - Dépenses
+    const caNetSemaineDerniere = parseFloat(caSemaineDerniere.rows[0].total) - parseFloat(depensesSemaineDerniere.rows[0].total);
 
     // Crédits clients en attente (avec détails)
     const creditsEnAttenteDetails = await pool.query(
@@ -216,21 +385,26 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
       details: chequesPretDepotDetails.rows
     };
 
-    // Statistiques par mode de paiement (aujourd'hui)
-    const modesPaiement = await pool.query(
+    // Top 5 clients par montant d'achats (du mois)
+    const topClients = await pool.query(
       `SELECT 
-        COALESCE(mode_paiement, 'non_specifie') as mode,
-        COUNT(*) as nb_operations,
-        COALESCE(SUM(montant_ttc), 0) as total
-       FROM ventes
-       WHERE magasin_id = $1
-       AND DATE(date_vente) = CURRENT_DATE
-       AND statut = 'valide'
-       AND (type_document = 'paiement_cheque'
-            OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))
-       GROUP BY mode_paiement
-       ORDER BY total DESC`,
+        c.id,
+        c.nom,
+        COUNT(v.id) as nb_achats,
+        COALESCE(SUM(v.montant_ttc), 0) as montant_total
+       FROM ventes v
+       JOIN clients c ON v.client_id = c.id
+       WHERE v.magasin_id = $1
+       AND DATE_TRUNC('month', v.date_vente) = DATE_TRUNC('month', CURRENT_DATE)
+       AND v.statut = 'valide'
+       AND v.type_document != 'depense'
+       AND v.type_document != 'paiement_credit'
+       AND v.type_document != 'paiement_cheque'
+       AND (v.mode_paiement IS NULL OR v.mode_paiement != 'credit')
+       AND v.client_id IS NOT NULL
+       GROUP BY c.id, c.nom
+       ORDER BY montant_total DESC
+       LIMIT 5`,
       [magasinId]
     );
 
@@ -274,6 +448,31 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
 
     res.json({
       ca: {
+        // CA BRUT (revenus uniquement)
+        brut: {
+          jour: parseFloat(caJour.rows[0].total),
+          hier: parseFloat(caHier.rows[0].total),
+          semaine: parseFloat(caSemaine.rows[0].total),
+          semaine_derniere: parseFloat(caSemaineDerniere.rows[0].total),
+          mois: parseFloat(caMois.rows[0].total),
+        },
+        // CA NET (CA brut - Dépenses)
+        net: {
+          jour: caNetJour,
+          hier: caNetHier,
+          semaine: caNetSemaine,
+          semaine_derniere: caNetSemaineDerniere,
+          mois: caNetMois,
+        },
+        // Dépenses
+        depenses: {
+          jour: parseFloat(depensesJour.rows[0].total),
+          hier: parseFloat(depensesHier.rows[0].total),
+          semaine: parseFloat(depensesSemaine.rows[0].total),
+          semaine_derniere: parseFloat(depensesSemaineDerniere.rows[0].total),
+          mois: parseFloat(depensesMois.rows[0].total),
+        },
+        // Pour compatibilité avec l'ancien code
         jour: {
           total: parseFloat(caJour.rows[0].total),
           nb_ventes: parseInt(caJour.rows[0].nb_ventes),
@@ -286,12 +485,11 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
       alertes: {
         rupture: alertes.rupture,
         seuil_minimum: alertes.seuil_minimum,
-        peremption: alertes.peremption,
         details: alertes.details,
       },
       top_produits: topProduits.rows,
       top_produits_jour: topProduitsJour.rows,
-      evolution: evolution.rows,
+      evolution: evolution, // evolution est déjà un tableau, pas besoin de .rows
       credits: {
         nb_clients: creditsEnAttente.nb_clients,
         total: creditsEnAttente.total_credits,
@@ -311,11 +509,20 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
           details: chequesPretDepot.details,
         },
       },
-      modes_paiement: modesPaiement.rows,
+      top_clients: topClients.rows,
+      statistiques: {
+        panier_moyen_jour: panierMoyenJour,
+        panier_moyen_mois: panierMoyenMois,
+        total_clients: parseInt(totalClients.rows[0].total),
+        total_produits: parseInt(totalProduits.rows[0].total),
+        valeur_stock: parseFloat(valeurStock.rows[0].valeur_totale),
+        ventes_annulees_mois: parseInt(ventesAnnulees.rows[0].total),
+      },
     });
   } catch (error) {
     console.error('Erreur getAdminDashboard:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('Stack:', (error as Error).stack);
+    res.status(500).json({ message: 'Erreur serveur', error: (error as Error).message });
   }
 };
 

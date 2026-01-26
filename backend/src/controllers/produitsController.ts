@@ -3,6 +3,36 @@ import pool from '../config/database';
 import { AuthRequest } from '../middleware/auth';
 import { logActivity } from '../utils/logger';
 import { addTenantFilter } from '../middleware/multiTenant';
+import cloudinary from '../config/cloudinary';
+import { Readable } from 'stream';
+
+// Fonction helper pour uploader une image vers Cloudinary
+const uploadToCloudinary = (buffer: Buffer, folder: string = 'produits'): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `gestilog/${folder}`,
+        resource_type: 'image',
+        transformation: [
+          { width: 800, height: 800, crop: 'limit' },
+          { quality: 'auto' }
+        ]
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result!.secure_url);
+        }
+      }
+    );
+
+    const readableStream = new Readable();
+    readableStream.push(buffer);
+    readableStream.push(null);
+    readableStream.pipe(uploadStream);
+  });
+};
 
 export const getProduits = async (req: AuthRequest, res: Response) => {
   try {
@@ -194,9 +224,27 @@ export const createProduit = async (req: AuthRequest, res: Response) => {
       unite,
       emplacement,
       image_url,
-      date_peremption,
       actif,
     } = req.body;
+
+    // Gérer l'upload de l'image si un fichier est fourni
+    let finalImageUrl = image_url || null;
+    if (req.file) {
+      try {
+        finalImageUrl = await uploadToCloudinary(req.file.buffer, 'produits');
+      } catch (uploadError) {
+        console.error('Erreur upload image produit:', uploadError);
+        return res.status(500).json({ message: 'Erreur lors de l\'upload de l\'image' });
+      }
+    }
+
+    // Parser les valeurs numériques et booléennes depuis FormData
+    const parsedCategorieId = categorie_id ? parseFloat(categorie_id) : null;
+    const parsedPrixAchat = prix_achat ? parseFloat(prix_achat) : 0;
+    const parsedPrixVente = prix_vente ? parseFloat(prix_vente) : 0;
+    const parsedStockActuel = stock_actuel ? parseFloat(stock_actuel) : 0;
+    const parsedStockMin = stock_min ? parseFloat(stock_min) : 0;
+    const parsedActif = actif === 'true' || actif === true || actif === undefined || actif === '';
 
     // Vérifier la limite de produits du plan
     if (req.user?.magasinId) {
@@ -226,25 +274,24 @@ export const createProduit = async (req: AuthRequest, res: Response) => {
     const result = await pool.query(
       `INSERT INTO produits 
        (magasin_id, nom, code_barre, reference, categorie_id, description, prix_achat, prix_vente,
-        stock_actuel, stock_min, unite, emplacement, image_url, date_peremption, actif)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        stock_actuel, stock_min, unite, emplacement, image_url, actif)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         req.user?.magasinId,
         nom,
-        code_barre,
-        reference,
-        categorie_id,
-        description,
-        prix_achat,
-        prix_vente,
-        stock_actuel || 0,
-        stock_min || 0,
+        code_barre || null,
+        reference || null,
+        parsedCategorieId,
+        description || null,
+        parsedPrixAchat,
+        parsedPrixVente,
+        parsedStockActuel,
+        parsedStockMin,
         unite || 'unité',
-        emplacement,
-        image_url,
-        date_peremption,
-        actif !== undefined ? actif : true,
+        emplacement || null,
+        finalImageUrl || null,
+        parsedActif,
       ]
     );
 
@@ -261,16 +308,47 @@ export const updateProduit = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const produitId = parseInt(id);
-    const updates = req.body;
+    let updates = req.body;
 
     if (isNaN(produitId)) {
       return res.status(400).json({ message: 'ID produit invalide' });
     }
 
+    // Gérer l'upload de l'image si un fichier est fourni
+    if (req.file) {
+      try {
+        const imageUrl = await uploadToCloudinary(req.file.buffer, 'produits');
+        updates.image_url = imageUrl;
+      } catch (uploadError) {
+        console.error('Erreur upload image produit:', uploadError);
+        return res.status(500).json({ message: 'Erreur lors de l\'upload de l\'image' });
+      }
+    }
+
+    // Parser les valeurs numériques et booléennes depuis FormData
+    if (updates.categorie_id !== undefined) {
+      updates.categorie_id = updates.categorie_id ? parseFloat(updates.categorie_id) : null;
+    }
+    if (updates.prix_achat !== undefined) {
+      updates.prix_achat = updates.prix_achat ? parseFloat(updates.prix_achat) : null;
+    }
+    if (updates.prix_vente !== undefined) {
+      updates.prix_vente = updates.prix_vente ? parseFloat(updates.prix_vente) : null;
+    }
+    if (updates.stock_actuel !== undefined) {
+      updates.stock_actuel = updates.stock_actuel ? parseFloat(updates.stock_actuel) : null;
+    }
+    if (updates.stock_min !== undefined) {
+      updates.stock_min = updates.stock_min ? parseFloat(updates.stock_min) : null;
+    }
+    if (updates.actif !== undefined) {
+      updates.actif = updates.actif === 'true' || updates.actif === true;
+    }
+
     const allowedFields = [
       'nom', 'code_barre', 'reference', 'categorie_id', 'description',
       'prix_achat', 'prix_vente', 'stock_actuel', 'stock_min', 'unite',
-      'emplacement', 'image_url', 'date_peremption', 'actif'
+      'emplacement', 'image_url', 'actif'
     ];
 
     const fieldsToUpdate = Object.keys(updates).filter(key => allowedFields.includes(key));
@@ -370,21 +448,9 @@ export const getAlertes = async (req: AuthRequest, res: Response) => {
     `;
     const seuil = await pool.query(seuilQuery, tenantFilter.params);
 
-    // Produits qui périment dans 30 jours
-    const peremptionQuery = `
-      SELECT * FROM produits 
-      WHERE magasin_id = $1 
-      AND date_peremption IS NOT NULL 
-      AND date_peremption BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
-      AND actif = true
-      ORDER BY date_peremption ASC
-    `;
-    const peremption = await pool.query(peremptionQuery, tenantFilter.params);
-
     res.json({
       rupture: rupture.rows,
       seuil_minimum: seuil.rows,
-      peremption: peremption.rows,
     });
   } catch (error) {
     console.error('Erreur getAlertes:', error);

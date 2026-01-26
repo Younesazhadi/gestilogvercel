@@ -6,7 +6,11 @@ import { addTenantFilter } from '../middleware/multiTenant';
 
 // Générer un numéro de vente unique
 const generateNumeroVente = async (magasinId: number, type: string): Promise<string> => {
-  const prefix = type === 'facture' ? 'FAC' : type === 'devis' ? 'DEV' : type === 'bl' ? 'BL' : 'TKT';
+  const prefix = type === 'facture' ? 'FAC' 
+    : type === 'devis' ? 'DEV' 
+    : type === 'bl' ? 'BL' 
+    : type === 'depense' ? 'DEP'
+    : 'TKT';
   const year = new Date().getFullYear();
   
   const lastVente = await pool.query(
@@ -41,8 +45,14 @@ export const createVente = async (req: AuthRequest, res: Response) => {
       tva_taux = 20, // TVA par défaut
     } = req.body;
 
-    if (!lignes || lignes.length === 0) {
+    // Pour les dépenses, on accepte des lignes sans produit_id
+    if (type_document !== 'depense' && (!lignes || lignes.length === 0)) {
       return res.status(400).json({ message: 'Au moins un produit est requis' });
+    }
+    
+    // Pour les dépenses, on doit avoir au moins une ligne
+    if (type_document === 'depense' && (!lignes || lignes.length === 0)) {
+      return res.status(400).json({ message: 'Au moins une ligne est requise pour une dépense' });
     }
 
     // Générer le numéro de vente
@@ -60,8 +70,12 @@ export const createVente = async (req: AuthRequest, res: Response) => {
 
       let produitNom = ligne.designation || 'Produit';
       
-      // Vérifier le stock si ce n'est pas un devis
-      if (type_document !== 'devis') {
+      // Pour les dépenses, pas besoin de vérifier le stock
+      if (type_document === 'depense') {
+        // Les dépenses n'ont pas de produit_id, on utilise juste la designation
+        produitNom = ligne.designation || 'Dépense';
+      } else if (type_document !== 'devis') {
+        // Vérifier le stock si ce n'est pas un devis
         const produitCheck = await pool.query(
           'SELECT stock_actuel, nom FROM produits WHERE id = $1 AND magasin_id = $2',
           [produit_id, req.user?.magasinId]
@@ -216,8 +230,8 @@ export const createVente = async (req: AuthRequest, res: Response) => {
         ]
       );
 
-      // Diminuer le stock si ce n'est pas un devis
-      if (type_document !== 'devis') {
+      // Diminuer le stock si ce n'est pas un devis et ce n'est pas une dépense
+      if (type_document !== 'devis' && type_document !== 'depense' && ligne.produit_id) {
         await pool.query(
           'UPDATE produits SET stock_actuel = stock_actuel - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
           [ligne.quantite, ligne.produit_id]
@@ -466,10 +480,11 @@ export const annulerVente = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Restaurer le stock si ce n'était pas un devis et ce n'est pas un paiement (paiement_credit, paiement_cheque)
+    // Restaurer le stock si ce n'était pas un devis, ce n'est pas un paiement (paiement_credit, paiement_cheque) et ce n'est pas une dépense
     if (vente.type_document !== 'devis' && 
         vente.type_document !== 'paiement_credit' && 
-        vente.type_document !== 'paiement_cheque') {
+        vente.type_document !== 'paiement_cheque' &&
+        vente.type_document !== 'depense') {
       for (const ligne of vente.lignes) {
         if (ligne.produit_id) {
           await client.query(

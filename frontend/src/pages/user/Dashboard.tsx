@@ -149,7 +149,7 @@ const Dashboard = () => {
       </div>
 
       {/* Alertes */}
-      {(stats?.alertes?.rupture > 0 || stats?.alertes?.seuil_minimum > 0 || stats?.alertes?.peremption > 0) && (
+      {(stats?.alertes?.rupture > 0 || stats?.alertes?.seuil_minimum > 0) && (
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Alertes importantes</h2>
           <div className="space-y-2">
@@ -166,14 +166,6 @@ const Dashboard = () => {
                 <AlertTriangle className="h-5 w-5 text-yellow-600" />
                 <span className="text-sm">
                   <strong>{stats.alertes.seuil_minimum}</strong> produit(s) sous le seuil minimum
-                </span>
-              </div>
-            )}
-            {stats.alertes.peremption > 0 && (
-              <div className="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                <span className="text-sm">
-                  <strong>{stats.alertes.peremption}</strong> produit(s) périment dans 30 jours
                 </span>
               </div>
             )}

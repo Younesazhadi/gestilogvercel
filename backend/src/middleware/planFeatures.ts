@@ -90,6 +90,14 @@ export const requireStockFeature = checkPlanFeature('stock_consulter');
 export const requireClientsFeature = checkPlanFeature('clients_consulter');
 export const requireFournisseursFeature = checkPlanFeature('fournisseurs_consulter');
 export const requireRapportsFeature = checkPlanFeature('rapports_basiques', ['rapports_avances']);
-export const requireDocumentsFeature = checkPlanFeature('documents_factures', ['documents_devis', 'documents_bons_livraison']);
+export const requireDocumentsFeature = checkPlanFeature('documents_factures', [
+  'documents_devis', 
+  'documents_bons_livraison',
+  'documents_tickets',
+  'documents_cheques_consulter',
+  'documents_cheques_deposer',
+  'documents_cheques_payer',
+  'documents_cheques_impayer'
+]);
 
 

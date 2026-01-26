@@ -14,6 +14,19 @@ interface PlanFormData {
   actif: boolean;
 }
 
+interface SubModule {
+  key: string;
+  name: string;
+  features: string[];
+}
+
+interface ModuleConfig {
+  key: string;
+  name: string;
+  features: string[];
+  subModules?: SubModule[];
+}
+
 const PlansList = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,104 +139,184 @@ const PlansList = () => {
     });
   };
 
-  // Liste de toutes les fonctionnalités disponibles
-  const toutesLesFonctionnalites = [
-    // Module Produits
-    'produits_consulter',
-    'produits_creer',
-    'produits_modifier',
-    'produits_supprimer',
-    'produits_modifier_prix',
-    'produits_upload_images',
-    'produits_code_barres',
-    'produits_categories',
-    // Module Stock
-    'stock_consulter',
-    'stock_entrees',
-    'stock_sorties',
-    'stock_ajustements',
-    'stock_inventaire',
-    'stock_alertes',
-    'stock_alertes_rupture',
-    'stock_alertes_seuil',
-    'stock_alertes_peremption',
-    // Module Ventes
-    'ventes_consulter',
-    'ventes_creer',
-    'ventes_modifier',
-    'ventes_supprimer',
-    'ventes_annuler',
-    'ventes_remises',
-    'ventes_pos',
-    'ventes_tickets',
-    'ventes_factures',
-    'ventes_devis',
-    'ventes_bons_livraison',
-    // Module Clients
-    'clients_consulter',
-    'clients_creer',
-    'clients_modifier',
-    'clients_supprimer',
-    'clients_credit',
-    'clients_paiements',
-    'clients_historique',
-    // Module Fournisseurs
-    'fournisseurs_consulter',
-    'fournisseurs_creer',
-    'fournisseurs_modifier',
-    'fournisseurs_supprimer',
-    'fournisseurs_commandes',
-    'fournisseurs_historique',
-    // Module Utilisateurs
-    'utilisateurs_consulter',
-    'utilisateurs_creer',
-    'utilisateurs_modifier',
-    'utilisateurs_supprimer',
-    'utilisateurs_permissions',
-    // Module Rapports
-    'rapports_basiques',
-    'rapports_avances',
-    'rapports_ventes',
-    'rapports_financiers',
-    'rapports_stock',
-    'rapports_top_produits',
-    'rapports_par_categorie',
-    'rapports_par_utilisateur',
-    'rapports_graphiques',
-    'rapports_export',
-    // Module Documents
-    'documents_factures',
-    'documents_devis',
-    'documents_bons_livraison',
-    'documents_tickets',
-    'documents_impression',
-    'documents_pdf',
-    // Module Dashboard
-    'dashboard_statistiques',
-    'dashboard_ca',
-    'dashboard_ventes',
-    'dashboard_graphiques',
-    'dashboard_alertes',
-    // Module Catégories
-    'categories_consulter',
-    'categories_creer',
-    'categories_modifier',
-    'categories_supprimer',
-    'categories_hierarchie',
-    // Fonctionnalités Avancées
-    'multi_magasins',
-    'api_access',
-    'support_prioritaire',
-    'upload_images',
-    'code_barres_scanner',
-    'export_donnees',
-    'import_donnees',
-    'sauvegarde_automatique',
-    'logs_activite',
-    'notifications_email',
-    'notifications_sms',
-    'tout_inclus',
+  // Définir les modules avec leurs fonctionnalités et métadonnées
+  const modulesConfig: ModuleConfig[] = [
+    {
+      key: 'produits',
+      name: '📦 Module Produits',
+      features: [
+        'produits_consulter',
+        'produits_creer',
+        'produits_modifier',
+        'produits_supprimer',
+        'produits_modifier_prix',
+        'produits_upload_images',
+        'produits_code_barres',
+        'produits_categories',
+      ],
+    },
+    {
+      key: 'stock',
+      name: '📊 Module Stock',
+      features: [
+        'stock_consulter',
+        'stock_entrees',
+        'stock_sorties',
+        'stock_ajustements',
+        'stock_inventaire',
+        'stock_alertes',
+        'stock_alertes_rupture',
+        'stock_alertes_seuil',
+      ],
+    },
+    {
+      key: 'ventes',
+      name: '🛒 Module Ventes',
+      features: [
+        'ventes_consulter',
+        'ventes_creer',
+        'ventes_modifier',
+        'ventes_supprimer',
+        'ventes_annuler',
+        'ventes_remises',
+        'ventes_pos',
+        'ventes_tickets',
+        'ventes_factures',
+        'ventes_devis',
+        'ventes_bons_livraison',
+      ],
+    },
+    {
+      key: 'clients',
+      name: '👥 Module Clients',
+      features: [
+        'clients_consulter',
+        'clients_creer',
+        'clients_modifier',
+        'clients_supprimer',
+        'clients_credit',
+        'clients_paiements',
+        'clients_historique',
+      ],
+    },
+    {
+      key: 'fournisseurs',
+      name: '🚚 Module Fournisseurs',
+      features: [
+        'fournisseurs_consulter',
+        'fournisseurs_creer',
+        'fournisseurs_modifier',
+        'fournisseurs_supprimer',
+        'fournisseurs_commandes',
+        'fournisseurs_historique',
+      ],
+    },
+    {
+      key: 'utilisateurs',
+      name: '👤 Module Utilisateurs',
+      features: [
+        'utilisateurs_consulter',
+        'utilisateurs_creer',
+        'utilisateurs_modifier',
+        'utilisateurs_supprimer',
+        'utilisateurs_permissions',
+      ],
+    },
+    {
+      key: 'rapports',
+      name: '📈 Module Rapports',
+      features: [
+        'rapports_basiques',
+        'rapports_avances',
+        'rapports_ventes',
+        'rapports_financiers',
+        'rapports_stock',
+        'rapports_top_produits',
+        'rapports_par_categorie',
+        'rapports_par_utilisateur',
+        'rapports_graphiques',
+        'rapports_export',
+      ],
+    },
+    {
+      key: 'documents',
+      name: '📄 Module Documents',
+      subModules: [
+        {
+          key: 'documents_liste',
+          name: '📋 Documents (Factures, Devis, BL, Tickets)',
+          features: [
+            'documents_factures',
+            'documents_devis',
+            'documents_bons_livraison',
+            'documents_tickets',
+            'documents_impression',
+            'documents_pdf',
+          ],
+        },
+        {
+          key: 'documents_cheques',
+          name: '💳 Gestion des Chèques',
+          features: [
+            'documents_cheques_consulter',
+            'documents_cheques_deposer',
+            'documents_cheques_payer',
+            'documents_cheques_impayer',
+          ],
+        },
+      ],
+      features: [], // Les fonctionnalités sont maintenant dans les sous-modules
+    },
+    {
+      key: 'dashboard',
+      name: '📊 Module Dashboard',
+      features: [
+        'dashboard_statistiques',
+        'dashboard_ca',
+        'dashboard_ventes',
+        'dashboard_graphiques',
+        'dashboard_alertes',
+      ],
+    },
+    {
+      key: 'categories',
+      name: '🏷️ Module Catégories',
+      features: [
+        'categories_consulter',
+        'categories_creer',
+        'categories_modifier',
+        'categories_supprimer',
+        'categories_hierarchie',
+      ],
+    },
+    {
+      key: 'avancees',
+      name: '⚙️ Fonctionnalités Avancées',
+      features: [
+        'multi_magasins',
+        'api_access',
+        'support_prioritaire',
+        'upload_images',
+        'code_barres_scanner',
+        'export_donnees',
+        'import_donnees',
+        'sauvegarde_automatique',
+        'logs_activite',
+        'notifications_email',
+        'notifications_sms',
+        'tout_inclus',
+      ],
+    },
   ];
+
+  // Générer automatiquement la liste de toutes les fonctionnalités à partir des modules et sous-modules
+  const toutesLesFonctionnalites = modulesConfig.flatMap(module => {
+    if (module.subModules) {
+      // Si le module a des sous-modules, prendre les fonctionnalités de tous les sous-modules
+      return module.subModules.flatMap(subModule => subModule.features);
+    }
+    return module.features;
+  });
 
   // Vérifier si toutes les fonctionnalités sont sélectionnées
   const toutesSelectionnees = toutesLesFonctionnalites.every(
@@ -247,115 +340,16 @@ const PlansList = () => {
     }
   };
 
-  // Définir les modules avec leurs fonctionnalités
-  const modules = {
-    produits: [
-      'produits_consulter',
-      'produits_creer',
-      'produits_modifier',
-      'produits_supprimer',
-      'produits_modifier_prix',
-      'produits_upload_images',
-      'produits_code_barres',
-      'produits_categories',
-    ],
-    stock: [
-      'stock_consulter',
-      'stock_entrees',
-      'stock_sorties',
-      'stock_ajustements',
-      'stock_inventaire',
-      'stock_alertes',
-      'stock_alertes_rupture',
-      'stock_alertes_seuil',
-      'stock_alertes_peremption',
-    ],
-    ventes: [
-      'ventes_consulter',
-      'ventes_creer',
-      'ventes_modifier',
-      'ventes_supprimer',
-      'ventes_annuler',
-      'ventes_remises',
-      'ventes_pos',
-      'ventes_tickets',
-      'ventes_factures',
-      'ventes_devis',
-      'ventes_bons_livraison',
-    ],
-    clients: [
-      'clients_consulter',
-      'clients_creer',
-      'clients_modifier',
-      'clients_supprimer',
-      'clients_credit',
-      'clients_paiements',
-      'clients_historique',
-    ],
-    fournisseurs: [
-      'fournisseurs_consulter',
-      'fournisseurs_creer',
-      'fournisseurs_modifier',
-      'fournisseurs_supprimer',
-      'fournisseurs_commandes',
-      'fournisseurs_historique',
-    ],
-    utilisateurs: [
-      'utilisateurs_consulter',
-      'utilisateurs_creer',
-      'utilisateurs_modifier',
-      'utilisateurs_supprimer',
-      'utilisateurs_permissions',
-    ],
-    rapports: [
-      'rapports_basiques',
-      'rapports_avances',
-      'rapports_ventes',
-      'rapports_financiers',
-      'rapports_stock',
-      'rapports_top_produits',
-      'rapports_par_categorie',
-      'rapports_par_utilisateur',
-      'rapports_graphiques',
-      'rapports_export',
-    ],
-    documents: [
-      'documents_factures',
-      'documents_devis',
-      'documents_bons_livraison',
-      'documents_tickets',
-      'documents_impression',
-      'documents_pdf',
-    ],
-    dashboard: [
-      'dashboard_statistiques',
-      'dashboard_ca',
-      'dashboard_ventes',
-      'dashboard_graphiques',
-      'dashboard_alertes',
-    ],
-    categories: [
-      'categories_consulter',
-      'categories_creer',
-      'categories_modifier',
-      'categories_supprimer',
-      'categories_hierarchie',
-    ],
-    avancees: [
-      'multi_magasins',
-      'api_access',
-      'support_prioritaire',
-      'upload_images',
-      'code_barres_scanner',
-      'export_donnees',
-      'import_donnees',
-      'sauvegarde_automatique',
-      'logs_activite',
-      'notifications_email',
-      'notifications_sms',
-      'tout_inclus',
-    ],
-  };
+  // Créer un objet modules pour la compatibilité avec le code existant
+  const modules = modulesConfig.reduce((acc, module) => {
+    if (module.subModules) {
+      // Si le module a des sous-modules, combiner toutes les fonctionnalités des sous-modules
+      acc[module.key] = module.subModules.flatMap(subModule => subModule.features);
+    } else {
+      acc[module.key] = module.features;
+    }
+    return acc;
+  }, {} as Record<string, string[]>);
 
   // Vérifier si toutes les fonctionnalités d'un module sont sélectionnées
   const moduleEstComplet = (moduleKeys: string[]) => {
@@ -453,23 +447,79 @@ const PlansList = () => {
               <div className="border-t pt-4">
                 <p className="text-sm font-medium text-gray-700 mb-3">Modules inclus:</p>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries({
-                    '📦 Produits': modules.produits,
-                    '📊 Stock': modules.stock,
-                    '🛒 Ventes': modules.ventes,
-                    '👥 Clients': modules.clients,
-                    '🚚 Fournisseurs': modules.fournisseurs,
-                    '👤 Utilisateurs': modules.utilisateurs,
-                    '📈 Rapports': modules.rapports,
-                    '📄 Documents': modules.documents,
-                    '📊 Dashboard': modules.dashboard,
-                    '🏷️ Catégories': modules.categories,
-                    '⚙️ Avancées': modules.avancees,
-                  }).map(([moduleName, moduleFeatures]) => {
-                    const activeFeatures = moduleFeatures.filter(
+                  {modulesConfig.map((module) => {
+                    // Si le module a des sous-modules
+                    if (module.subModules) {
+                      const activeSubModules = module.subModules.filter(subModule => {
+                        const subActiveFeatures = subModule.features.filter(
+                          key => plan.fonctionnalites[key] === true
+                        ).length;
+                        return subActiveFeatures > 0;
+                      });
+
+                      // Si aucun sous-module n'est actif, ne rien afficher
+                      if (activeSubModules.length === 0) return null;
+
+                      // Vérifier si tous les sous-modules sont complètement sélectionnés
+                      const allSubModulesComplete = module.subModules.every(subModule => {
+                        const subActiveFeatures = subModule.features.filter(
+                          key => plan.fonctionnalites[key] === true
+                        ).length;
+                        return subActiveFeatures === subModule.features.length;
+                      });
+
+                      // Si tous les sous-modules sont complets, afficher seulement le module parent
+                      if (allSubModulesComplete && activeSubModules.length === module.subModules.length) {
+                        const totalFeatures = module.subModules.flatMap(sub => sub.features).length;
+                        const activeFeatures = totalFeatures;
+                        return (
+                          <div
+                            key={module.key}
+                            className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+                              'bg-green-100 text-green-800 border border-green-300'
+                            }`}
+                            title={`Tous les sous-modules activés (${activeFeatures}/${totalFeatures} fonctionnalités)`}
+                          >
+                            <span className="mr-1">{module.name.split(' ')[0]}</span>
+                            <span className="font-semibold">
+                              {activeFeatures}/{totalFeatures}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      // Sinon, afficher uniquement les sous-modules sélectionnés
+                      return activeSubModules.map(subModule => {
+                        const subActiveFeatures = subModule.features.filter(
+                          key => plan.fonctionnalites[key] === true
+                        ).length;
+                        const subTotalFeatures = subModule.features.length;
+                        const isSubModuleComplete = subActiveFeatures === subTotalFeatures;
+                        
+                        return (
+                          <div
+                            key={subModule.key}
+                            className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+                              isSubModuleComplete
+                                ? 'bg-green-100 text-green-800 border border-green-300'
+                                : 'bg-blue-100 text-blue-800 border border-blue-300'
+                            }`}
+                            title={`${subActiveFeatures}/${subTotalFeatures} fonctionnalités activées`}
+                          >
+                            <span className="mr-1">{subModule.name.split(' ')[0]}</span>
+                            <span className="font-semibold">
+                              {subActiveFeatures}/{subTotalFeatures}
+                            </span>
+                          </div>
+                        );
+                      });
+                    }
+
+                    // Module sans sous-modules (comportement normal)
+                    const activeFeatures = module.features.filter(
                       key => plan.fonctionnalites[key] === true
                     ).length;
-                    const totalFeatures = moduleFeatures.length;
+                    const totalFeatures = module.features.length;
                     const isModuleActive = activeFeatures > 0;
                     const isModuleComplete = activeFeatures === totalFeatures;
 
@@ -477,7 +527,7 @@ const PlansList = () => {
 
                     return (
                       <div
-                        key={moduleName}
+                        key={module.key}
                         className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
                           isModuleComplete
                             ? 'bg-green-100 text-green-800 border border-green-300'
@@ -485,7 +535,7 @@ const PlansList = () => {
                         }`}
                         title={`${activeFeatures}/${totalFeatures} fonctionnalités activées`}
                       >
-                        <span className="mr-1">{moduleName.split(' ')[0]}</span>
+                        <span className="mr-1">{module.name.split(' ')[0]}</span>
                         <span className="font-semibold">
                           {activeFeatures}/{totalFeatures}
                         </span>
@@ -623,441 +673,85 @@ const PlansList = () => {
                   </label>
                 </div>
                 <div className="space-y-4 p-4 border border-gray-300 rounded-lg max-h-96 overflow-y-auto">
-                  {/* Module Produits */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">📦 Module Produits</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.produits)}
-                          onChange={() => toggleModule(modules.produits)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'produits_consulter',
-                        'produits_creer',
-                        'produits_modifier',
-                        'produits_supprimer',
-                        'produits_modifier_prix',
-                        'produits_upload_images',
-                        'produits_code_barres',
-                        'produits_categories',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Stock */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">📊 Module Stock</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.stock)}
-                          onChange={() => toggleModule(modules.stock)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'stock_consulter',
-                        'stock_entrees',
-                        'stock_sorties',
-                        'stock_ajustements',
-                        'stock_inventaire',
-                        'stock_alertes',
-                        'stock_alertes_rupture',
-                        'stock_alertes_seuil',
-                        'stock_alertes_peremption',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Ventes */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">🛒 Module Ventes</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.ventes)}
-                          onChange={() => toggleModule(modules.ventes)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'ventes_consulter',
-                        'ventes_creer',
-                        'ventes_modifier',
-                        'ventes_supprimer',
-                        'ventes_annuler',
-                        'ventes_remises',
-                        'ventes_pos',
-                        'ventes_tickets',
-                        'ventes_factures',
-                        'ventes_devis',
-                        'ventes_bons_livraison',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Clients */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">👥 Module Clients</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.clients)}
-                          onChange={() => toggleModule(modules.clients)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'clients_consulter',
-                        'clients_creer',
-                        'clients_modifier',
-                        'clients_supprimer',
-                        'clients_credit',
-                        'clients_paiements',
-                        'clients_historique',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Fournisseurs */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">🚚 Module Fournisseurs</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.fournisseurs)}
-                          onChange={() => toggleModule(modules.fournisseurs)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'fournisseurs_consulter',
-                        'fournisseurs_creer',
-                        'fournisseurs_modifier',
-                        'fournisseurs_supprimer',
-                        'fournisseurs_commandes',
-                        'fournisseurs_historique',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Utilisateurs */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">👤 Module Utilisateurs</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.utilisateurs)}
-                          onChange={() => toggleModule(modules.utilisateurs)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'utilisateurs_consulter',
-                        'utilisateurs_creer',
-                        'utilisateurs_modifier',
-                        'utilisateurs_supprimer',
-                        'utilisateurs_permissions',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Rapports */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">📈 Module Rapports</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.rapports)}
-                          onChange={() => toggleModule(modules.rapports)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'rapports_basiques',
-                        'rapports_avances',
-                        'rapports_ventes',
-                        'rapports_financiers',
-                        'rapports_stock',
-                        'rapports_top_produits',
-                        'rapports_par_categorie',
-                        'rapports_par_utilisateur',
-                        'rapports_graphiques',
-                        'rapports_export',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Documents */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">📄 Module Documents</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.documents)}
-                          onChange={() => toggleModule(modules.documents)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'documents_factures',
-                        'documents_devis',
-                        'documents_bons_livraison',
-                        'documents_tickets',
-                        'documents_impression',
-                        'documents_pdf',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Dashboard */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">📊 Module Dashboard</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.dashboard)}
-                          onChange={() => toggleModule(modules.dashboard)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'dashboard_statistiques',
-                        'dashboard_ca',
-                        'dashboard_ventes',
-                        'dashboard_graphiques',
-                        'dashboard_alertes',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Module Catégories */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">🏷️ Module Catégories</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.categories)}
-                          onChange={() => toggleModule(modules.categories)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'categories_consulter',
-                        'categories_creer',
-                        'categories_modifier',
-                        'categories_supprimer',
-                        'categories_hierarchie',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Fonctionnalités Avancées */}
-                  <div className="border-b pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800">⚙️ Fonctionnalités Avancées</h4>
-                      <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
-                        <input
-                          type="checkbox"
-                          checked={moduleEstComplet(modules.avancees)}
-                          onChange={() => toggleModule(modules.avancees)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span>Tout sélectionner</span>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {[
-                        'multi_magasins',
-                        'api_access',
-                        'support_prioritaire',
-                        'upload_images',
-                        'code_barres_scanner',
-                        'export_donnees',
-                        'import_donnees',
-                        'sauvegarde_automatique',
-                        'logs_activite',
-                        'notifications_email',
-                        'notifications_sms',
-                        'tout_inclus',
-                      ].map((key) => (
-                        <label key={key} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={fonctionnalites?.[key] || false}
-                            onChange={() => toggleFonctionnalite(key)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm text-gray-700 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                  {modulesConfig.map((module) => {
+                    // Si le module a des sous-modules, les afficher de manière indépendante
+                    if (module.subModules) {
+                      return (
+                        <div key={module.key} className="border-b pb-4 last:border-b-0">
+                          <div className="mb-3">
+                            <h4 className="font-semibold text-gray-800 text-lg">{module.name}</h4>
+                            <p className="text-xs text-gray-500 mt-1">Sélectionnez les sous-modules souhaités</p>
+                          </div>
+                          <div className="space-y-3 ml-4">
+                            {module.subModules.map((subModule) => (
+                              <div key={subModule.key} className="border-l-2 border-gray-200 pl-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h5 className="font-medium text-gray-700">{subModule.name}</h5>
+                                  <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={moduleEstComplet(subModule.features)}
+                                      onChange={() => toggleModule(subModule.features)}
+                                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <span>Tout sélectionner</span>
+                                  </label>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                  {subModule.features.map((key) => (
+                                    <label key={key} className="flex items-center space-x-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={fonctionnalites?.[key] || false}
+                                        onChange={() => toggleFonctionnalite(key)}
+                                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                                      />
+                                      <span className="text-sm text-gray-700 capitalize">
+                                        {key.replace(/_/g, ' ')}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Module sans sous-modules (comportement normal)
+                    return (
+                      <div key={module.key} className="border-b pb-2 last:border-b-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-gray-800">{module.name}</h4>
+                          <label className="flex items-center space-x-2 cursor-pointer text-xs text-primary hover:text-blue-700">
+                            <input
+                              type="checkbox"
+                              checked={moduleEstComplet(module.features)}
+                              onChange={() => toggleModule(module.features)}
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <span>Tout sélectionner</span>
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {module.features.map((key) => (
+                            <label key={key} className="flex items-center space-x-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={fonctionnalites?.[key] || false}
+                                onChange={() => toggleFonctionnalite(key)}
+                                className="rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <span className="text-sm text-gray-700 capitalize">
+                                {key.replace(/_/g, ' ')}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

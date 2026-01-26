@@ -39,7 +39,6 @@ export interface Produit {
   unite: string;
   emplacement: string | null;
   image_url: string | null;
-  date_peremption: string | null;
   actif: boolean;
   created_at: string;
   updated_at: string;

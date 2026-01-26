@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Upload, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { buildRoute } from '../../utils/routes';
 import { formatDateForInput } from '../../utils/dateUtils';
@@ -20,7 +20,6 @@ interface ProduitFormData {
   stock_min: number;
   unite: string;
   emplacement: string;
-  date_peremption: string;
   actif: boolean;
 }
 
@@ -32,6 +31,9 @@ const ProduitForm = () => {
   const [loading, setLoading] = useState(false);
   const [loadingProduit, setLoadingProduit] = useState(isEdit);
   const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<ProduitFormData>({
     defaultValues: {
       nom: '',
@@ -45,7 +47,6 @@ const ProduitForm = () => {
       stock_min: 0,
       unite: 'unité',
       emplacement: '',
-      date_peremption: '',
       actif: true,
     },
   });
@@ -73,12 +74,15 @@ const ProduitForm = () => {
       }
       
       Object.keys(produit).forEach((key) => {
-        if (key === 'date_peremption' && produit[key]) {
-          setValue(key as keyof ProduitFormData, formatDateForInput(produit[key]));
-        } else {
+        if (key !== 'date_peremption') { // Ignorer date_peremption (fonctionnalité supprimée)
           setValue(key as keyof ProduitFormData, produit[key]);
         }
       });
+
+      // Afficher l'image existante si disponible
+      if (produit.image_url) {
+        setImagePreview(produit.image_url);
+      }
       
       setLoadingProduit(false);
     } catch (error: any) {
@@ -106,14 +110,78 @@ const ProduitForm = () => {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Vérifier la taille (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Le fichier est trop volumineux (max 5MB)');
+        return;
+      }
+
+      // Vérifier le type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Format de fichier non accepté. Formats acceptés: JPG, PNG, GIF, WEBP');
+        return;
+      }
+
+      setImageFile(file);
+      
+      // Créer une preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const onSubmit = async (data: ProduitFormData) => {
     setLoading(true);
     try {
+      const formData = new FormData();
+      
+      // Ajouter tous les champs texte
+      Object.keys(data).forEach((key) => {
+        const value = data[key as keyof ProduitFormData];
+        if (value !== undefined && value !== null && value !== '') {
+          if (typeof value === 'boolean') {
+            formData.append(key, value.toString());
+          } else if (typeof value === 'number') {
+            formData.append(key, value.toString());
+          } else {
+            formData.append(key, value);
+          }
+        }
+      });
+
+      // Ajouter le fichier image si sélectionné
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+
       if (isEdit) {
-        await axios.put(`/admin/produits/${id}`, data);
+        await axios.put(`/admin/produits/${id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
         toast.success('Produit modifié avec succès');
       } else {
-        await axios.post('/admin/produits', data);
+        await axios.post('/admin/produits', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
         toast.success('Produit créé avec succès');
       }
       navigate(buildRoute(user?.role, '/produits'));
@@ -289,16 +357,6 @@ const ProduitForm = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date de péremption
-            </label>
-            <input
-              {...register('date_peremption')}
-              type="date"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
         </div>
 
         <div>
@@ -310,6 +368,59 @@ const ProduitForm = () => {
             rows={4}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
+        </div>
+
+        {/* Section Image */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Image du produit
+          </label>
+          <div className="space-y-4">
+            {imagePreview && (
+              <div className="relative inline-block">
+                <div className="relative">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="h-32 w-32 object-contain border-2 border-gray-300 rounded-lg"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  {imageFile && (
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleFileChange}
+                className="hidden"
+                id="image-upload"
+              />
+              <label
+                htmlFor="image-upload"
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors"
+              >
+                <Upload className="h-5 w-5" />
+                <span>📤 Uploader une image</span>
+              </label>
+              <span className="text-sm text-gray-500">
+                Formats acceptés: JPG, PNG, GIF, WEBP (max 5MB)
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center">

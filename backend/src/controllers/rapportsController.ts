@@ -159,6 +159,7 @@ export const getRapportFinancier = async (req: AuthRequest, res: Response) => {
       FROM ventes v
       WHERE v.magasin_id = $1
       AND v.statut = 'valide'
+      AND v.type_document != 'depense'
       AND (v.type_document = 'paiement_cheque'
            OR (v.type_document = 'paiement_credit' AND v.mode_paiement != 'cheque')
            OR (v.mode_paiement IS NULL OR (v.mode_paiement != 'credit' AND v.mode_paiement != 'cheque')))
@@ -188,23 +189,40 @@ export const getRapportFinancier = async (req: AuthRequest, res: Response) => {
       AND solde > 0
     `;
 
-    const [caResult, coutResult, creancesResult] = await Promise.all([
+    // Dépenses totales
+    const depensesQuery = `
+      SELECT 
+        COALESCE(SUM(v.montant_ttc), 0) as depenses_total
+      FROM ventes v
+      WHERE v.magasin_id = $1
+      AND v.statut = 'valide'
+      AND v.type_document = 'depense'
+      ${dateFilter}
+    `;
+
+    const [caResult, coutResult, creancesResult, depensesResult] = await Promise.all([
       pool.query(caQuery, params),
       pool.query(coutQuery, params),
       pool.query(creancesQuery, [magasinId]),
+      pool.query(depensesQuery, params),
     ]);
 
-    const ca = parseFloat(caResult.rows[0].ca_total);
+    const caBrut = parseFloat(caResult.rows[0].ca_total);
+    const depenses = parseFloat(depensesResult.rows[0].depenses_total);
+    const caNet = caBrut - depenses;
     const coutAchat = parseFloat(coutResult.rows[0].cout_achat);
-    const margeBrute = ca - coutAchat;
-    const tauxMarge = ca > 0 ? (margeBrute / ca) * 100 : 0;
+    const margeBrute = caNet - coutAchat; // Marge brute = CA net - Coût d'achat
+    const tauxMarge = caNet > 0 ? (margeBrute / caNet) * 100 : 0;
 
     res.json({
       ca: {
-        total_ttc: ca,
+        brut_ttc: caBrut,
+        net_ttc: caNet,
+        total_ttc: caNet, // Pour compatibilité, on retourne le CA net
         total_ht: parseFloat(caResult.rows[0].ca_ht),
         tva: parseFloat(caResult.rows[0].tva_total),
       },
+      depenses: depenses,
       cout_achat: coutAchat,
       marge_brute: margeBrute,
       taux_marge: tauxMarge,

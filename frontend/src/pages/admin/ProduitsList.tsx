@@ -141,13 +141,20 @@ const ProduitsList = () => {
               {produits.map((produit) => (
                 <tr key={produit.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {produit.image_url && (
+                    <div className="flex items-center space-x-3">
+                      {produit.image_url ? (
                         <img
                           src={produit.image_url}
                           alt={produit.nom}
-                          className="h-10 w-10 rounded object-cover mr-3"
+                          className="h-12 w-12 rounded object-cover flex-shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
+                      ) : (
+                        <div className="h-12 w-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <Package className="h-6 w-6 text-gray-400" />
+                        </div>
                       )}
                       <div>
                         <p className="font-medium text-gray-900">{produit.nom}</p>

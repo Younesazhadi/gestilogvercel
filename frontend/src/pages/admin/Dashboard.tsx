@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, Package, Users, CreditCard, Calendar, ArrowUp, ArrowDown, TrendingDown } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, Package, Users, CreditCard, Calendar, ArrowUp, ArrowDown, Download } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchStats();
@@ -22,34 +27,110 @@ const AdminDashboard = () => {
     }
   };
 
+  const exportToPDF = async () => {
+    if (!contentRef.current) return;
+
+    setExporting(true);
+    try {
+      // Attendre un peu pour que les graphiques se chargent complètement
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+
+      // Calculer le nombre de pages nécessaires
+      const pageHeight = imgHeight * ratio;
+      let heightLeft = pageHeight;
+      let position = 0;
+
+      // Première page
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      heightLeft -= pdfHeight;
+
+      // Pages supplémentaires si nécessaire
+      while (heightLeft > 0) {
+        position = heightLeft - pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio);
+        heightLeft -= pdfHeight;
+      }
+
+      // Générer le nom du fichier avec la date
+      const date = new Date().toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      pdf.save(`dashboard-${date.replace(/\//g, '-')}.pdf`);
+    } catch (error) {
+      console.error('Erreur lors de l\'exportation PDF:', error);
+      alert('Erreur lors de l\'exportation du PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8">Chargement...</div>;
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard</h1>
+    <div className="p-8" ref={dashboardRef}>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+        <button
+          onClick={exportToPDF}
+          disabled={exporting || loading}
+          className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <Download className="h-5 w-5" />
+          <span>{exporting ? 'Exportation...' : 'Exporter en PDF'}</span>
+        </button>
+      </div>
 
-      {/* Cartes de statistiques principales */}
+      <div ref={contentRef}>
+        {/* Cartes de statistiques principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-gray-500 text-sm">CA du jour</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {Number(stats?.ca?.jour?.total || 0).toFixed(2)} MAD
+              <p className="text-gray-500 text-sm">CA NET du jour</p>
+              <p className={`text-2xl font-bold ${(stats?.ca?.net?.jour || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                {Number(stats?.ca?.net?.jour || 0).toFixed(2)} MAD
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Brut: {Number(stats?.ca?.brut?.jour || 0).toFixed(2)} MAD
+                {stats?.ca?.depenses?.jour > 0 && (
+                  <span className="text-red-600 ml-2">
+                    - Dépenses: {Number(stats?.ca?.depenses?.jour || 0).toFixed(2)} MAD
+                  </span>
+                )}
               </p>
               <div className="flex items-center mt-1">
-                {stats?.ca?.hier !== undefined && stats?.ca?.hier > 0 && stats?.ca?.jour?.total !== undefined && (
+                {stats?.ca?.net?.hier !== undefined && stats?.ca?.net?.hier !== null && stats?.ca?.net?.jour !== undefined && (
                   <>
-                    {stats.ca.jour.total > stats.ca.hier ? (
+                    {stats.ca.net.jour > stats.ca.net.hier ? (
                       <ArrowUp className="h-4 w-4 text-success mr-1" />
-                    ) : stats.ca.jour.total < stats.ca.hier ? (
+                    ) : stats.ca.net.jour < stats.ca.net.hier ? (
                       <ArrowDown className="h-4 w-4 text-danger mr-1" />
                     ) : null}
-                    <p className={`text-xs ${stats.ca.jour.total > stats.ca.hier ? 'text-success' : stats.ca.jour.total < stats.ca.hier ? 'text-danger' : 'text-gray-500'}`}>
-                      {stats.ca.hier > 0 
-                        ? `${((stats.ca.jour.total - stats.ca.hier) / stats.ca.hier * 100).toFixed(1)}% vs hier`
+                    <p className={`text-xs ${stats.ca.net.jour > stats.ca.net.hier ? 'text-success' : stats.ca.net.jour < stats.ca.net.hier ? 'text-danger' : 'text-gray-500'}`}>
+                      {stats.ca.net.hier !== 0 
+                        ? `${((stats.ca.net.jour - stats.ca.net.hier) / Math.abs(stats.ca.net.hier) * 100).toFixed(1)}% vs hier`
                         : 'Nouveau'}
                     </p>
                   </>
@@ -66,14 +147,24 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-gray-500 text-sm">CA de la semaine</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {Number(stats?.ca?.semaine || 0).toFixed(2)} MAD
+              <p className="text-gray-500 text-sm">CA NET de la semaine</p>
+              <p className={`text-2xl font-bold ${(stats?.ca?.net?.semaine || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                {Number(stats?.ca?.net?.semaine || 0).toFixed(2)} MAD
               </p>
-              {stats?.ca?.semaine_derniere !== undefined && stats?.ca?.semaine_derniere > 0 && stats?.ca?.semaine !== undefined && (
-                <p className={`text-xs mt-1 ${stats.ca.semaine > stats.ca.semaine_derniere ? 'text-success' : stats.ca.semaine < stats.ca.semaine_derniere ? 'text-danger' : 'text-gray-500'}`}>
-                  {stats.ca.semaine > stats.ca.semaine_derniere ? '+' : ''}
-                  {((stats.ca.semaine - stats.ca.semaine_derniere) / stats.ca.semaine_derniere * 100).toFixed(1)}% vs semaine dernière
+              <p className="text-xs text-gray-500 mt-1">
+                Brut: {Number(stats?.ca?.brut?.semaine || 0).toFixed(2)} MAD
+                {stats?.ca?.depenses?.semaine > 0 && (
+                  <span className="text-red-600 ml-2">
+                    - Dépenses: {Number(stats?.ca?.depenses?.semaine || 0).toFixed(2)} MAD
+                  </span>
+                )}
+              </p>
+              {stats?.ca?.net?.semaine_derniere !== undefined && stats?.ca?.net?.semaine_derniere !== null && stats?.ca?.net?.semaine !== undefined && (
+                <p className={`text-xs mt-1 ${stats.ca.net.semaine > stats.ca.net.semaine_derniere ? 'text-success' : stats.ca.net.semaine < stats.ca.net.semaine_derniere ? 'text-danger' : 'text-gray-500'}`}>
+                  {stats.ca.net.semaine > stats.ca.net.semaine_derniere ? '+' : ''}
+                  {stats.ca.net.semaine_derniere !== 0 
+                    ? `${((stats.ca.net.semaine - stats.ca.net.semaine_derniere) / Math.abs(stats.ca.net.semaine_derniere) * 100).toFixed(1)}% vs semaine dernière`
+                    : 'Nouveau'}
                 </p>
               )}
             </div>
@@ -84,9 +175,17 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-gray-500 text-sm">CA du mois</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {Number(stats?.ca?.mois || 0).toFixed(2)} MAD
+              <p className="text-gray-500 text-sm">CA NET du mois</p>
+              <p className={`text-2xl font-bold ${(stats?.ca?.net?.mois || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                {Number(stats?.ca?.net?.mois || 0).toFixed(2)} MAD
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Brut: {Number(stats?.ca?.brut?.mois || 0).toFixed(2)} MAD
+                {stats?.ca?.depenses?.mois > 0 && (
+                  <span className="text-red-600 ml-2">
+                    - Dépenses: {Number(stats?.ca?.depenses?.mois || 0).toFixed(2)} MAD
+                  </span>
+                )}
               </p>
             </div>
             <ShoppingCart className="h-12 w-12 text-warning" />
@@ -96,20 +195,85 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-gray-500 text-sm">Alertes stock</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {(stats?.alertes?.rupture || 0) + (stats?.alertes?.seuil_minimum || 0)}
+              <p className="text-gray-500 text-sm">Dépenses du jour</p>
+              <p className="text-2xl font-bold text-red-600">
+                {Number(stats?.ca?.depenses?.jour || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                {stats?.alertes?.rupture || 0} rupture, {stats?.alertes?.seuil_minimum || 0} seuil
+                {stats?.ca?.depenses?.mois > 0 && (
+                  <span>Mois: {Number(stats?.ca?.depenses?.mois || 0).toFixed(2)} MAD</span>
+                )}
               </p>
             </div>
-            <AlertTriangle className="h-12 w-12 text-danger" />
+            <DollarSign className="h-12 w-12 text-red-600" />
           </div>
         </div>
       </div>
 
-      {/* Cartes supplémentaires */}
+      {/* Cartes supplémentaires - Statistiques générales */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm">Panier moyen (jour)</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {Number(stats?.statistiques?.panier_moyen_jour || 0).toFixed(2)} MAD
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Mois: {Number(stats?.statistiques?.panier_moyen_mois || 0).toFixed(2)} MAD
+              </p>
+            </div>
+            <ShoppingCart className="h-12 w-12 text-primary" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm">Total clients</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {stats?.statistiques?.total_clients || 0}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Clients actifs
+              </p>
+            </div>
+            <Users className="h-12 w-12 text-primary" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm">Total produits</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {stats?.statistiques?.total_produits || 0}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Produits actifs
+              </p>
+            </div>
+            <Package className="h-12 w-12 text-warning" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm">Valeur du stock</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {Number(stats?.statistiques?.valeur_stock || 0).toFixed(2)} MAD
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Stock total
+              </p>
+            </div>
+            <Package className="h-12 w-12 text-success" />
+          </div>
+        </div>
+      </div>
+
+      {/* Cartes supplémentaires - Crédits et Chèques */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
@@ -170,27 +334,45 @@ const AdminDashboard = () => {
             <Package className="h-12 w-12 text-primary" />
           </div>
         </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm">Ventes annulées (mois)</p>
+              <p className="text-2xl font-bold text-red-600">
+                {stats?.statistiques?.ventes_annulees_mois || 0}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Ce mois-ci
+              </p>
+            </div>
+            <AlertTriangle className="h-12 w-12 text-red-600" />
+          </div>
+        </div>
       </div>
 
       {/* Graphiques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Évolution des opérations (7 jours)</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Évolution CA NET (7 jours)</h2>
           {(() => {
-            // Calculer le maximum du CA dans les données
+            // Calculer le maximum et minimum du CA net dans les données
             const evolutionData = stats?.evolution || [];
-            const maxCA = evolutionData.length > 0 
-              ? Math.max(...evolutionData.map((d: any) => parseFloat(d.ca) || 0))
-              : 0;
-            const yAxisMax = maxCA > 0 ? Math.ceil(maxCA * 1.1) : 'auto';
+            const caValues = evolutionData.map((d: any) => parseFloat(d.ca) || 0);
+            const maxCA = caValues.length > 0 ? Math.max(...caValues) : 0;
+            const minCA = caValues.length > 0 ? Math.min(...caValues) : 0;
+            // Pour le YAxis, on prend le max entre maxCA et abs(minCA) pour gérer les valeurs négatives
+            const maxAbs = Math.max(Math.abs(maxCA), Math.abs(minCA));
+            const yAxisMax = maxAbs > 0 ? Math.ceil(maxAbs * 1.1) : 'auto';
+            const yAxisMin = minCA < 0 ? -Math.ceil(Math.abs(minCA) * 1.1) : 0;
             
             return (
-              <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300}>
                 <LineChart 
                   data={evolutionData} 
                   margin={{ top: 10, right: 30, bottom: 5, left: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
                     tickFormatter={(value) => {
@@ -199,44 +381,74 @@ const AdminDashboard = () => {
                     }}
                   />
                   <YAxis 
-                    domain={[0, yAxisMax]}
+                    domain={[yAxisMin, yAxisMax]}
                     allowDataOverflow={false}
                     tickFormatter={(value) => {
-                      if (value >= 1000) {
+                      if (Math.abs(value) >= 1000) {
                         return `${(value / 1000).toFixed(1)}K`;
                       }
                       return value.toString();
                     }}
                   />
                   <Tooltip 
-                    formatter={(value: any) => `${Number(value).toFixed(2)} MAD`}
+                    formatter={(value: any) => {
+                      const val = Number(value);
+                      const sign = val >= 0 ? '+' : '';
+                      return `${sign}${val.toFixed(2)} MAD`;
+                    }}
                     labelFormatter={(label) => {
                       const date = new Date(label);
                       return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
                     }}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc' }}
                   />
                   <Line 
                     type="monotone" 
                     dataKey="ca" 
                     stroke="#3B82F6" 
-                    strokeWidth={2} 
-                    dot={{ r: 4 }} 
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
                     isAnimationActive={false}
+                    name="CA Net"
                   />
-                </LineChart>
-              </ResponsiveContainer>
+            </LineChart>
+          </ResponsiveContainer>
             );
           })()}
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Top 10 produits du mois</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={stats?.top_produits || []}>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={stats?.top_produits || []} margin={{ top: 20, right: 30, left: 0, bottom: 80 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nom" angle={-45} textAnchor="end" height={80} />
-              <YAxis />
-              <Tooltip />
+              <XAxis 
+                dataKey="nom" 
+                angle={-45} 
+                textAnchor="end" 
+                height={80}
+                tick={{ fontSize: 10 }}
+                interval={0}
+                tickFormatter={(value) => {
+                  // Tronquer les noms à 15 caractères
+                  if (value.length > 15) {
+                    return value.substring(0, 15) + '...';
+                  }
+                  return value;
+                }}
+              />
+              <YAxis 
+                domain={[
+                  0, 
+                  stats?.top_produits && stats.top_produits.length > 0 
+                    ? Math.ceil(parseFloat(stats.top_produits[0].quantite_vendue || 0) * 1.1)
+                    : 'auto'
+                ]}
+              />
+              <Tooltip 
+                formatter={(value: any) => `${value} unités`}
+                labelFormatter={(label) => `Produit: ${label}`}
+              />
               <Bar dataKey="quantite_vendue" fill="#10B981" />
             </BarChart>
           </ResponsiveContainer>
@@ -246,58 +458,95 @@ const AdminDashboard = () => {
       {/* Graphiques supplémentaires */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Modes de paiement (Aujourd'hui)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={stats?.modes_paiement || []}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => {
-                  const modeNames: Record<string, string> = {
-                    'especes': 'Espèces',
-                    'carte': 'Carte',
-                    'cheque': 'Chèque',
-                    'virement': 'Virement',
-                    'credit': 'Crédit',
-                    'non_specifie': 'Non spécifié'
-                  };
-                  return `${modeNames[name] || name}: ${(percent * 100).toFixed(0)}%`;
-                }}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="total"
-              >
-                {(stats?.modes_paiement || []).map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index % 5]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value: any) => `${Number(value).toFixed(2)} MAD`} />
-              <Legend formatter={(value: string) => {
-                const modeNames: Record<string, string> = {
-                  'especes': 'Espèces',
-                  'carte': 'Carte',
-                  'cheque': 'Chèque',
-                  'virement': 'Virement',
-                  'credit': 'Crédit',
-                  'non_specifie': 'Non spécifié'
-                };
-                return modeNames[value] || value;
-              }} />
-            </PieChart>
-          </ResponsiveContainer>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Top 5 clients du mois</h2>
+          {stats?.top_clients && stats.top_clients.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={stats.top_clients} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    type="number" 
+                    domain={[
+                      0,
+                      stats.top_clients && stats.top_clients.length > 0
+                        ? Math.ceil(parseFloat(stats.top_clients[0].montant_total || 0) * 1.1)
+                        : 'auto'
+                    ]}
+                    tickFormatter={(value) => {
+                      if (value >= 1000) {
+                        return `${(value / 1000).toFixed(1)}K`;
+                      }
+                      return value.toString();
+                    }}
+                  />
+                  <YAxis 
+                    type="category" 
+                    dataKey="nom" 
+                    width={120}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip 
+                    formatter={(value: any, name: string) => {
+                      if (name === 'montant_total') {
+                        return [`${Number(value).toFixed(2)} MAD`, 'Montant total'];
+                      }
+                      return [value, 'Nombre d\'achats'];
+                    }}
+                    labelFormatter={(label) => `Client: ${label}`}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc' }}
+                  />
+                  <Bar dataKey="montant_total" fill="#3B82F6" name="Montant total">
+                    <LabelList
+                      dataKey={(entry: any) => {
+                        const nbAchats = entry?.nb_achats || 0;
+                        const montant = parseFloat(entry?.montant_total || 0);
+                        return `${Math.round(montant)} MAD (${nbAchats} achat${nbAchats > 1 ? 's' : ''})`;
+                      }}
+                      position="right"
+                      style={{ fontSize: 11, fill: '#374151', fontWeight: 'medium' }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">
+              <p>Aucun client avec des achats ce mois-ci</p>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Top 5 produits du jour</h2>
           {stats?.top_produits_jour && stats.top_produits_jour.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats.top_produits_jour}>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={stats.top_produits_jour} margin={{ top: 20, right: 30, left: 0, bottom: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="nom" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
-                <Tooltip />
+                <XAxis 
+                  dataKey="nom" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={80}
+                  tick={{ fontSize: 10 }}
+                  interval={0}
+                  tickFormatter={(value) => {
+                    // Tronquer les noms à 15 caractères
+                    if (value.length > 15) {
+                      return value.substring(0, 15) + '...';
+                    }
+                    return value;
+                  }}
+                />
+                <YAxis 
+                  domain={[
+                    0, 
+                    Math.ceil(parseFloat(stats.top_produits_jour[0].quantite_vendue || 0) * 1.1)
+                  ]}
+                />
+                <Tooltip 
+                  formatter={(value: any) => `${value} unités`}
+                  labelFormatter={(label) => `Produit: ${label}`}
+                />
                 <Bar dataKey="quantite_vendue" fill="#3B82F6" />
               </BarChart>
             </ResponsiveContainer>
@@ -310,7 +559,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Alertes et Notifications */}
-      {(stats?.alertes?.rupture > 0 || stats?.alertes?.seuil_minimum > 0 || stats?.alertes?.peremption > 0 || 
+      {(stats?.alertes?.rupture > 0 || stats?.alertes?.seuil_minimum > 0 || 
         stats?.credits?.clients_credit_eleve > 0 || stats?.cheques?.pret_depot?.nb > 0) && (
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Alertes et Notifications</h2>
@@ -328,14 +577,6 @@ const AdminDashboard = () => {
                 <AlertTriangle className="h-5 w-5 text-warning" />
                 <span className="text-sm">
                   <strong>{stats.alertes.seuil_minimum}</strong> produit(s) sous le seuil minimum
-                </span>
-              </div>
-            )}
-            {stats.alertes.peremption > 0 && (
-              <div className="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-                <AlertTriangle className="h-5 w-5 text-warning" />
-                <span className="text-sm">
-                  <strong>{stats.alertes.peremption}</strong> produit(s) périment dans 30 jours
                 </span>
               </div>
             )}
@@ -358,6 +599,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

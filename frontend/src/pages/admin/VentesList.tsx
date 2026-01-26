@@ -165,6 +165,7 @@ const VentesList = () => {
             <option value="ticket">Ticket</option>
             <option value="facture">Facture</option>
             <option value="devis">Devis</option>
+            <option value="depense">Dépense</option>
             <option value="bl">Bon de livraison</option>
             <option value="paiement_credit">Paiement crédit</option>
             <option value="paiement_cheque">Paiement chèque</option>
@@ -274,12 +275,16 @@ const VentesList = () => {
                       ? 'bg-purple-100 text-purple-800'
                       : vente.type_document === 'paiement_cheque'
                       ? 'bg-green-100 text-green-800'
+                      : vente.type_document === 'depense'
+                      ? 'bg-red-100 text-red-800'
                       : 'bg-blue-100 text-blue-800'
                   }`}>
                     {vente.type_document === 'paiement_credit' 
                       ? 'Paiement crédit' 
                       : vente.type_document === 'paiement_cheque'
                       ? 'Paiement chèque'
+                      : vente.type_document === 'depense'
+                      ? 'Dépense'
                       : vente.type_document}
                   </span>
                 </td>
@@ -289,8 +294,10 @@ const VentesList = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     {(vente as any).client_nom || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-bold">
-                    {Number(vente.montant_ttc).toFixed(2)} MAD
+                  <td className={`px-6 py-4 whitespace-nowrap font-bold ${
+                    vente.type_document === 'depense' ? 'text-red-600' : ''
+                  }`}>
+                    {vente.type_document === 'depense' ? '-' : ''}{Number(vente.montant_ttc).toFixed(2)} MAD
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span

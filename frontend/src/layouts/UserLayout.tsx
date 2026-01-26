@@ -115,7 +115,20 @@ const UserLayout = () => {
     } else if (item.requiredPermission === 'rapports.consulter') {
       hasPlanFeature = planFeatures.rapports_basiques === true || planFeatures.rapports_avances === true || planFeatures.tout_inclus === true;
     } else if (item.requiredPermission === 'documents.generer') {
-      hasPlanFeature = planFeatures.documents_factures === true || planFeatures.documents_devis === true || planFeatures.documents_bons_livraison === true || planFeatures.tout_inclus === true;
+      // Vérifier les fonctionnalités des documents (factures, devis, BL, tickets)
+      const hasDocuments = planFeatures.documents_factures === true || 
+                          planFeatures.documents_devis === true || 
+                          planFeatures.documents_bons_livraison === true ||
+                          planFeatures.documents_tickets === true;
+      
+      // Vérifier les fonctionnalités des chèques
+      const hasCheques = planFeatures.documents_cheques_consulter === true ||
+                        planFeatures.documents_cheques_deposer === true ||
+                        planFeatures.documents_cheques_payer === true ||
+                        planFeatures.documents_cheques_impayer === true;
+      
+      // Afficher le menu Documents si au moins un sous-module est activé
+      hasPlanFeature = hasDocuments || hasCheques || planFeatures.tout_inclus === true;
     }
 
     return hasPermission && hasPlanFeature;

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, User, CreditCard, Edit2 } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, User, CreditCard, Edit2, DollarSign, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Produit, Client } from '../../types';
 
 interface LignePanier {
   produit_id: number;
   nom: string;
+  image_url?: string | null;
   prix_unitaire: number;
   quantite: number;
   tva: number;
@@ -33,6 +34,13 @@ const POS = () => {
   const [loading, setLoading] = useState(false);
   const [loadingProduits, setLoadingProduits] = useState(false);
   const [showPaiementCredit, setShowPaiementCredit] = useState(false);
+  const [showDepense, setShowDepense] = useState(false);
+  const [categorieDepense, setCategorieDepense] = useState('');
+  const [montantDepense, setMontantDepense] = useState(0);
+  const [descriptionDepense, setDescriptionDepense] = useState('');
+  const [modePaiementDepense, setModePaiementDepense] = useState('especes');
+  const [referencePaiementDepense, setReferencePaiementDepense] = useState('');
+  const [dateChequeDepense, setDateChequeDepense] = useState('');
   const [editingLigne, setEditingLigne] = useState<{ id: number; field: 'prix' | 'tva' | 'quantite' } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const clientSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -172,6 +180,7 @@ const POS = () => {
         {
           produit_id: produit.id,
           nom: produit.nom,
+          image_url: produit.image_url,
           prix_unitaire: prixUnitaire,
           quantite: 1,
           tva: 0, // TVA par défaut à 0%
@@ -354,6 +363,71 @@ const POS = () => {
     }
   };
 
+  const enregistrerDepense = async () => {
+    if (!categorieDepense.trim()) {
+      toast.error('La catégorie de dépense est requise');
+      return;
+    }
+    if (montantDepense <= 0) {
+      toast.error('Le montant doit être supérieur à 0');
+      return;
+    }
+    if (!descriptionDepense.trim()) {
+      toast.error('La description est requise');
+      return;
+    }
+
+    if (modePaiementDepense === 'cheque') {
+      if (!referencePaiementDepense.trim()) {
+        toast.error('Le numéro de chèque est requis');
+        return;
+      }
+      if (!dateChequeDepense) {
+        toast.error('La date du chèque est requise');
+        return;
+      }
+    }
+
+    setLoading(true);
+    try {
+      await axios.post('/admin/ventes', {
+        type_document: 'depense',
+        client_id: null,
+        lignes: [{
+          produit_id: null,
+          designation: `${categorieDepense} - ${descriptionDepense}`,
+          quantite: 1,
+          prix_unitaire: montantDepense,
+          tva: 0,
+          remise_ligne: 0,
+        }],
+        remise: 0,
+        mode_paiement: modePaiementDepense,
+        reference_paiement: referencePaiementDepense || null,
+        date_cheque: modePaiementDepense === 'cheque' ? dateChequeDepense : null,
+        montant_paye: null,
+        notes: `Dépense: ${categorieDepense} - ${descriptionDepense}`,
+        montant_ht: montantDepense,
+        montant_tva: 0,
+        montant_ttc: montantDepense,
+      });
+
+      toast.success('Dépense enregistrée avec succès');
+      setShowDepense(false);
+      setCategorieDepense('');
+      setMontantDepense(0);
+      setDescriptionDepense('');
+      setModePaiementDepense('especes');
+      setReferencePaiementDepense('');
+      setDateChequeDepense('');
+      searchInputRef.current?.focus();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erreur lors de l\'enregistrement de la dépense');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const payerCredit = async () => {
     if (!clientSelectionne || !clientSelectionne.solde || clientSelectionne.solde <= 0) {
       toast.error('Aucun crédit à payer');
@@ -440,19 +514,37 @@ const POS = () => {
                         : 'border-transparent hover:border-primary'
                     }`}
                   >
-                    <p className="font-medium text-gray-900">{produit.nom}</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {Number(produit.prix_vente).toFixed(2)} MAD
-                    </p>
-                    <p className={`text-xs mt-1 ${
-                      produit.stock_actuel <= 0
-                        ? 'text-red-500'
-                        : produit.stock_actuel <= produit.stock_min
-                        ? 'text-yellow-500'
-                        : 'text-gray-400'
-                    }`}>
-                      Stock: {produit.stock_actuel} {produit.unite}
-                    </p>
+                    <div className="flex items-start space-x-3">
+                      {produit.image_url ? (
+                        <img
+                          src={produit.image_url}
+                          alt={produit.nom}
+                          className="h-16 w-16 rounded object-cover flex-shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="h-16 w-16 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <Package className="h-8 w-8 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{produit.nom}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {Number(produit.prix_vente).toFixed(2)} MAD
+                        </p>
+                        <p className={`text-xs mt-1 ${
+                          produit.stock_actuel <= 0
+                            ? 'text-red-500'
+                            : produit.stock_actuel <= produit.stock_min
+                            ? 'text-yellow-500'
+                            : 'text-gray-400'
+                        }`}>
+                          Stock: {produit.stock_actuel} {produit.unite}
+                        </p>
+                      </div>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -476,16 +568,25 @@ const POS = () => {
                 <ShoppingCart className="h-6 w-6 mr-2" />
                 Panier
               </h2>
-              <select
-                value={typeDocument}
-                onChange={(e) => setTypeDocument(e.target.value as any)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              >
-                <option value="ticket">Ticket</option>
-                <option value="facture">Facture</option>
-                <option value="devis">Devis</option>
-                <option value="bl">Bon de livraison</option>
-              </select>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowDepense(true)}
+                  className="px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex items-center"
+                >
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  Dépense
+                </button>
+                <select
+                  value={typeDocument}
+                  onChange={(e) => setTypeDocument(e.target.value as any)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="ticket">Ticket</option>
+                  <option value="facture">Facture</option>
+                  <option value="devis">Devis</option>
+                  <option value="bl">Bon de livraison</option>
+                </select>
+              </div>
             </div>
 
             {/* Sélection client */}
@@ -580,14 +681,32 @@ const POS = () => {
                     key={ligne.produit_id}
                     className="bg-gray-50 p-3 rounded-lg"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-medium text-gray-900">{ligne.nom}</p>
-                      <button
-                        onClick={() => supprimerLigne(ligne.produit_id)}
-                        className="text-danger hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    <div className="flex items-start space-x-3 mb-2">
+                      {ligne.image_url ? (
+                        <img
+                          src={ligne.image_url}
+                          alt={ligne.nom}
+                          className="h-12 w-12 rounded object-cover flex-shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <Package className="h-6 w-6 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-gray-900 truncate">{ligne.nom}</p>
+                          <button
+                            onClick={() => supprimerLigne(ligne.produit_id)}
+                            className="text-danger hover:text-red-700 ml-2 flex-shrink-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-sm">
                       <div>
@@ -933,6 +1052,180 @@ const POS = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Dépense */}
+      {showDepense && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                  <DollarSign className="h-6 w-6 mr-2 text-red-600" />
+                  Enregistrer une dépense
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowDepense(false);
+                    setCategorieDepense('');
+                    setMontantDepense(0);
+                    setDescriptionDepense('');
+                    setModePaiementDepense('especes');
+                    setReferencePaiementDepense('');
+                    setDateChequeDepense('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Catégorie de dépense *
+                  </label>
+                  <select
+                    value={categorieDepense}
+                    onChange={(e) => setCategorieDepense(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    required
+                  >
+                    <option value="">Sélectionner une catégorie</option>
+                    <option value="Loyer">Loyer</option>
+                    <option value="Électricité">Électricité</option>
+                    <option value="Eau">Eau</option>
+                    <option value="Téléphone/Internet">Téléphone/Internet</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Fournitures">Fournitures</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Publicité">Publicité</option>
+                    <option value="Salaire">Salaire</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Montant (MAD) *
+                  </label>
+                  <input
+                    type="number"
+                    value={montantDepense || ''}
+                    onChange={(e) => setMontantDepense(parseFloat(e.target.value) || 0)}
+                    step="0.01"
+                    min="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description / Motif *
+                  </label>
+                  <textarea
+                    value={descriptionDepense}
+                    onChange={(e) => setDescriptionDepense(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    rows={3}
+                    placeholder="Décrivez la dépense..."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mode de paiement *
+                  </label>
+                  <select
+                    value={modePaiementDepense}
+                    onChange={(e) => {
+                      setModePaiementDepense(e.target.value);
+                      setReferencePaiementDepense('');
+                      setDateChequeDepense('');
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="especes">Espèces</option>
+                    <option value="carte">Carte bancaire</option>
+                    <option value="cheque">Chèque</option>
+                    <option value="virement">Virement</option>
+                  </select>
+                </div>
+
+                {modePaiementDepense === 'carte' || modePaiementDepense === 'virement' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Référence (optionnel)
+                    </label>
+                    <input
+                      type="text"
+                      value={referencePaiementDepense}
+                      onChange={(e) => setReferencePaiementDepense(e.target.value)}
+                      placeholder="N° transaction / virement"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                ) : null}
+
+                {modePaiementDepense === 'cheque' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Numéro de chèque *
+                      </label>
+                      <input
+                        type="text"
+                        value={referencePaiementDepense}
+                        onChange={(e) => setReferencePaiementDepense(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Date du chèque *
+                      </label>
+                      <input
+                        type="date"
+                        value={dateChequeDepense}
+                        onChange={(e) => setDateChequeDepense(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowDepense(false);
+                      setCategorieDepense('');
+                      setMontantDepense(0);
+                      setDescriptionDepense('');
+                      setModePaiementDepense('especes');
+                      setReferencePaiementDepense('');
+                      setDateChequeDepense('');
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={enregistrerDepense}
+                    disabled={loading || !categorieDepense || montantDepense <= 0 || !descriptionDepense}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Enregistrement...' : `Enregistrer (${montantDepense.toFixed(2)} MAD)`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

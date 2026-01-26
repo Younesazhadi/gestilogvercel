@@ -12,6 +12,7 @@ import FournisseursList from '../pages/admin/FournisseursList';
 import UsersList from '../pages/admin/UsersList';
 import Rapports from '../pages/admin/Rapports';
 import Documents from '../pages/admin/Documents';
+import EntrepriseInfo from '../pages/admin/EntrepriseInfo';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -81,6 +82,12 @@ const AdminLayout = () => {
       icon: 'FileText',
       requiredFeature: 'documents_factures' // Factures ou autres documents
     },
+    { 
+      path: '/admin/entreprise', 
+      label: 'Infos entreprise', 
+      icon: 'Building2',
+      requiredFeature: null // Toujours accessible pour les admins
+    },
   ];
 
   // Filtrer les menus selon les fonctionnalités du plan
@@ -91,8 +98,8 @@ const AdminLayout = () => {
       return true; // Tout inclus = tout accessible
     }
     
-    // Dashboard toujours accessible
-    if (item.path === '/admin/dashboard') {
+    // Dashboard et Infos entreprise toujours accessibles
+    if (item.path === '/admin/dashboard' || item.path === '/admin/entreprise') {
       return true;
     }
 
@@ -109,7 +116,20 @@ const AdminLayout = () => {
     }
     
     if (requiredFeature === 'documents_factures') {
-      return planFeatures.documents_factures || planFeatures.documents_devis || planFeatures.documents_bons_livraison;
+      // Vérifier les fonctionnalités des documents (factures, devis, BL, tickets)
+      const hasDocuments = planFeatures.documents_factures || 
+                          planFeatures.documents_devis || 
+                          planFeatures.documents_bons_livraison ||
+                          planFeatures.documents_tickets;
+      
+      // Vérifier les fonctionnalités des chèques
+      const hasCheques = planFeatures.documents_cheques_consulter ||
+                        planFeatures.documents_cheques_deposer ||
+                        planFeatures.documents_cheques_payer ||
+                        planFeatures.documents_cheques_impayer;
+      
+      // Afficher le menu Documents si au moins un sous-module est activé
+      return hasDocuments || hasCheques;
     }
 
     return planFeatures[requiredFeature] === true;
@@ -133,6 +153,7 @@ const AdminLayout = () => {
           <Route path="users" element={<UsersList />} />
           <Route path="rapports" element={<Rapports />} />
           <Route path="documents" element={<Documents />} />
+          <Route path="entreprise" element={<EntrepriseInfo />} />
           <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
         </Routes>
       </main>

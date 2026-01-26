@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 interface Notification {
   id: string;
-  type: 'rupture' | 'seuil_minimum' | 'credit_eleve' | 'cheque_pret' | 'peremption' | 'credits_attente' | 'cheques_attente';
+  type: 'rupture' | 'seuil_minimum' | 'credit_eleve' | 'cheque_pret' | 'credits_attente' | 'cheques_attente';
   title: string;
   message: string;
   count?: number;
@@ -90,28 +90,6 @@ const NotificationBell = () => {
           message,
           count: stats.alertes.seuil_minimum,
           link: window.location.pathname.startsWith('/admin') ? '/admin/produits?stock_bas=true' : '/produits?stock_bas=true',
-          severity: 'medium',
-          details: produits,
-        });
-      }
-
-      // Péremption
-      if (stats.alertes?.peremption > 0) {
-        const produits = stats.alertes.details?.peremption || [];
-        const nomsProduits = produits.map((p: any) => p.nom).join(', ');
-        const message = produits.length === 1
-          ? `Le produit "${nomsProduits}" périme le ${new Date(produits[0].date_peremption).toLocaleDateString('fr-FR')}. Vérifiez les dates de péremption.`
-          : produits.length <= 3
-          ? `Les produits ${nomsProduits} périment dans les 30 prochains jours. Vérifiez les dates de péremption.`
-          : `Les produits ${nomsProduits} et ${stats.alertes.peremption - produits.length} autre(s) périment dans les 30 prochains jours. Vérifiez les dates de péremption.`;
-        
-        newNotifications.push({
-          id: 'peremption',
-          type: 'peremption',
-          title: '⏰ Péremption proche',
-          message,
-          count: stats.alertes.peremption,
-          link: window.location.pathname.startsWith('/admin') ? '/admin/produits' : '/produits',
           severity: 'medium',
           details: produits,
         });
@@ -224,7 +202,6 @@ const NotificationBell = () => {
     switch (type) {
       case 'rupture':
       case 'seuil_minimum':
-      case 'peremption':
         return <Package className="h-5 w-5" />;
       case 'credit_eleve':
       case 'credits_attente':

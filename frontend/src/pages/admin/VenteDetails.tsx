@@ -1,21 +1,34 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, Printer, X } from 'lucide-react';
+import { ArrowLeft, Printer, X, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Vente } from '../../types';
+import { generateDocumentPDF } from '../../utils/generateDocumentPDF';
 
 const VenteDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [vente, setVente] = useState<Vente | null>(null);
   const [loading, setLoading] = useState(true);
+  const [entreprise, setEntreprise] = useState<any>(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchVente();
+      fetchEntrepriseInfo();
     }
   }, [id]);
+
+  const fetchEntrepriseInfo = async () => {
+    try {
+      const response = await axios.get('/admin/entreprise');
+      setEntreprise(response.data.entreprise);
+    } catch (error) {
+      console.error('Erreur chargement infos entreprise:', error);
+    }
+  };
 
   const fetchVente = async () => {
     try {
@@ -68,8 +81,40 @@ const VenteDetails = () => {
         </div>
         <div className="flex space-x-3">
           <button
+            onClick={async () => {
+              if (!entreprise) {
+                toast.error('Impossible de charger les informations de l\'entreprise');
+                return;
+              }
+              setGeneratingPDF(true);
+              try {
+                await generateDocumentPDF(vente as any, entreprise);
+                toast.success('PDF généré avec succès');
+              } catch (error: any) {
+                console.error('Erreur génération PDF:', error);
+                toast.error('Erreur lors de la génération du PDF');
+              } finally {
+                setGeneratingPDF(false);
+              }
+            }}
+            disabled={generatingPDF}
+            className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {generatingPDF ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Génération...</span>
+              </>
+            ) : (
+              <>
+                <Download className="h-5 w-5" />
+                <span>Exporter PDF</span>
+              </>
+            )}
+          </button>
+          <button
             onClick={() => window.print()}
-            className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
           >
             <Printer className="h-5 w-5" />
             <span>Imprimer</span>

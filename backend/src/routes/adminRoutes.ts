@@ -27,6 +27,8 @@ import * as fournisseursController from '../controllers/fournisseursController';
 import * as usersController from '../controllers/usersController';
 import * as dashboardController from '../controllers/dashboardController';
 import * as chequesController from '../controllers/chequesController';
+import * as entrepriseController from '../controllers/entrepriseController';
+import { upload } from '../middleware/upload';
 
 const router = Router();
 
@@ -41,8 +43,8 @@ router.get('/dashboard', dashboardController.getAdminDashboard);
 // Produits
 router.get('/produits', canViewProduits, produitsController.getProduits);
 router.get('/produits/:id', canViewProduits, produitsController.getProduit);
-router.post('/produits', canCreateProduits, produitsController.createProduit);
-router.put('/produits/:id', canModifyProduits, produitsController.updateProduit);
+router.post('/produits', canCreateProduits, upload.single('image'), produitsController.createProduit);
+router.put('/produits/:id', canModifyProduits, upload.single('image'), produitsController.updateProduit);
 router.delete('/produits/:id', canDeleteProduits, produitsController.deleteProduit);
 router.get('/produits/alertes/stock', canViewStock, produitsController.getAlertes);
 
@@ -84,6 +86,10 @@ router.delete('/users/:id', requireAdmin, usersController.deleteUser);
 // Chèques
 router.get('/cheques', canViewVentes, chequesController.getCheques);
 router.patch('/cheques/:id/statut', canModifyVentes, chequesController.updateStatutCheque);
+
+// Informations entreprise
+router.get('/entreprise', requireAdmin, entrepriseController.getEntrepriseInfo);
+router.put('/entreprise', requireAdmin, upload.single('logo'), entrepriseController.updateEntrepriseInfo);
 
 export default router;
 
