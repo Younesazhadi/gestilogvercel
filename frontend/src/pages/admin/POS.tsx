@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, User, CreditCard, Edit2, DollarSign, Package } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, User, CreditCard, Edit2, DollarSign, Package, ChevronRight, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Produit, Client } from '../../types';
 
@@ -42,6 +42,7 @@ const POS = () => {
   const [referencePaiementDepense, setReferencePaiementDepense] = useState('');
   const [dateChequeDepense, setDateChequeDepense] = useState('');
   const [editingLigne, setEditingLigne] = useState<{ id: number; field: 'prix' | 'tva' | 'quantite' } | null>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1); // Stepper mobile: 1=Client, 2=Produits, 3=Panier, 4=Paiement
   const searchInputRef = useRef<HTMLInputElement>(null);
   const clientSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -146,6 +147,14 @@ const POS = () => {
       fetchClients(value);
     }, 300);
   };
+
+  // Charger les clients quand on arrive sur l'étape Client (mobile)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024 && currentStep === 1) {
+      fetchClients(searchClient);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
 
   const selectClient = (client: Client) => {
     setClientSelectionne(client);
@@ -266,7 +275,12 @@ const POS = () => {
   };
 
   const supprimerLigne = (produitId: number) => {
-    setPanier(panier.filter((l) => l.produit_id !== produitId));
+    const nouveauPanier = panier.filter((l) => l.produit_id !== produitId);
+    setPanier(nouveauPanier);
+    // Si le panier est vide, retourner à l'étape 1 sur mobile
+    if (nouveauPanier.length === 0 && typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setCurrentStep(2);
+    }
   };
 
   const calculerTotal = () => {
@@ -355,6 +369,7 @@ const POS = () => {
       setReferencePaiement('');
       setDateCheque('');
       setMontantPaye(0);
+      setCurrentStep(1); // Retour à l'étape 1 sur mobile
       searchInputRef.current?.focus();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erreur lors de la vente');
@@ -420,6 +435,7 @@ const POS = () => {
       setModePaiementDepense('especes');
       setReferencePaiementDepense('');
       setDateChequeDepense('');
+      setCurrentStep(1); // Retour à l'étape 1 sur mobile
       searchInputRef.current?.focus();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erreur lors de l\'enregistrement de la dépense');
@@ -479,17 +495,199 @@ const POS = () => {
   const { totalHT, totalTVA, totalTTC } = calculerTotal();
   const monnaieARendre = monnaieRecue - totalTTC;
 
+  // Stepper mobile: 4 étapes
+  const steps = [
+    { id: 1, label: 'Client', icon: User },
+    { id: 2, label: 'Produits', icon: Package },
+    { id: 3, label: `Panier${panier.length > 0 ? ` (${panier.length})` : ''}`, icon: ShoppingCart },
+    { id: 4, label: 'Paiement', icon: CreditCard },
+  ];
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      <div className="flex-1 flex overflow-hidden">
-        {/* Panneau gauche - Recherche et produits */}
-        <div className="w-1/2 border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200 bg-white">
-            <h1 className="text-2xl font-bold text-gray-800 mb-4">Point de Vente</h1>
+      {/* Stepper mobile */}
+      <div className="lg:hidden bg-white border-b border-gray-200 px-3 py-2">
+        <h1 className="text-sm font-bold text-gray-800 mb-2 text-center">Point de Vente</h1>
+        <div className="flex items-center justify-between">
+          {steps.map((step, index) => {
+            const Icon = step.icon;
+            const isActive = currentStep === step.id;
+            const isCompleted = currentStep > step.id;
+            const isLast = index === steps.length - 1;
+            
+            const canNavigate = step.id <= 2 || (step.id === 3 && panier.length > 0) || (step.id === 4 && panier.length > 0);
+            
+            return (
+              <div key={step.id} className="flex items-center flex-1">
+                <div 
+                  className={`flex flex-col items-center flex-1 ${canNavigate ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                  onClick={() => canNavigate && setCurrentStep(step.id as 1 | 2 | 3 | 4)}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
+                      isActive
+                        ? 'bg-primary border-primary text-white'
+                        : isCompleted
+                        ? 'bg-green-500 border-green-500 text-white'
+                        : 'bg-gray-100 border-gray-300 text-gray-400'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Icon className="h-4 w-4" />
+                    )}
+                  </div>
+                  <span className={`text-[10px] mt-0.5 text-center leading-tight ${isActive ? 'font-semibold text-primary' : 'text-gray-500'}`}>
+                    {step.label}
+                  </span>
+                </div>
+                {!isLast && (
+                  <div className={`flex-1 h-0.5 mx-2 ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}`} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Étape 1 mobile : Client */}
+        <div className={`${currentStep === 1 ? 'flex' : 'hidden'} lg:hidden w-full flex-col bg-white`}>
+          <div className="p-3 border-b border-gray-200 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-gray-800 flex items-center">
+              <User className="h-4 w-4 mr-1.5 text-primary" />
+              Client
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowDepense(true)}
+              className="px-2.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 flex items-center"
+            >
+              <DollarSign className="h-3.5 w-3.5 mr-1" />
+              Dépense
+            </button>
+          </div>
+          <div className="p-3 border-b border-gray-200">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un client..."
+                value={searchClient}
+                onChange={(e) => handleClientSearch(e.target.value)}
+                onFocus={() => searchClient && fetchClients(searchClient)}
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {clientSelectionne ? (
+              <div className="p-3">
+                <div className="bg-primary/10 border border-primary/30 rounded-lg p-3">
+                  <p className="text-sm font-medium text-gray-900">{clientSelectionne.nom}</p>
+                  {clientSelectionne.telephone && (
+                    <p className="text-xs text-gray-500 mt-0.5">{clientSelectionne.telephone}</p>
+                  )}
+                  <p className="text-xs text-gray-600 mt-1">
+                    Solde: {Number(clientSelectionne.solde || 0).toFixed(2)} MAD
+                  </p>
+                  {(clientSelectionne.solde || 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPaiementCredit(true);
+                        setCurrentStep(4);
+                      }}
+                      className="w-full mt-2 py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Payer le crédit
+                    </button>
+                  )}
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setClientSelectionne(null); setSearchClient(''); setClients([]); }}
+                      className="text-xs text-gray-600 hover:text-gray-800"
+                    >
+                      Changer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      className="flex-1 py-2 bg-primary text-white rounded-lg text-xs font-medium hover:bg-blue-700"
+                    >
+                      Suivant
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <ul className="p-2 max-h-[50vh] overflow-y-auto">
+                  {clients.length > 0 ? (
+                    clients.map((client) => (
+                      <li key={client.id}>
+                        <button
+                          type="button"
+                          onClick={() => selectClient(client)}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex justify-between items-center border-b border-gray-100 last:border-0"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{client.nom}</p>
+                            {client.telephone && (
+                              <p className="text-xs text-gray-500">{client.telephone}</p>
+                            )}
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        </button>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="px-3 py-4 text-center text-xs text-gray-500">
+                      {searchClient.length >= 1 ? 'Aucun client trouvé' : 'Tapez pour rechercher un client'}
+                    </li>
+                  )}
+                </ul>
+                <div className="p-3 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => { setClientSelectionne(null); setSearchClient(''); setCurrentStep(2); }}
+                    className="w-full py-2 border-2 border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+                  >
+                    Passager (sans client)
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Panneau gauche - Recherche et produits (step 2 mobile, toujours desktop) */}
+        <div className={`${currentStep === 2 ? 'flex' : 'hidden'} lg:flex w-full lg:w-1/2 border-r border-gray-200 flex-col`}>
+          {/* Barre de recherche mobile */}
+          <div className="lg:hidden p-2 border-b border-gray-200 bg-white">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 ref={searchInputRef}
+                type="text"
+                placeholder="Rechercher un produit..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                autoFocus
+              />
+            </div>
+          </div>
+          
+          {/* Barre de recherche desktop */}
+          <div className="hidden lg:block p-4 border-b border-gray-200 bg-white">
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-800 mb-3 lg:mb-4">Point de Vente</h1>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 lg:h-5 w-5 text-gray-400" />
+              <input
                 type="text"
                 placeholder="Rechercher un produit (nom, code-barres, référence)..."
                 value={search}
@@ -500,41 +698,41 @@ const POS = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-2 lg:p-4">
             {produits.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 lg:gap-3">
                 {produits.map((produit) => (
                   <button
                     key={produit.id}
                     onClick={() => ajouterAuPanier(produit)}
                     disabled={produit.stock_actuel <= 0 && typeDocument !== 'devis'}
-                    className={`bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border-2 ${
+                    className={`bg-white p-2.5 lg:p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left border-2 ${
                       produit.stock_actuel <= 0 && typeDocument !== 'devis'
                         ? 'border-red-300 opacity-50 cursor-not-allowed'
                         : 'border-transparent hover:border-primary'
                     }`}
                   >
-                    <div className="flex items-start space-x-3">
+                    <div className="flex items-start space-x-2 lg:space-x-3">
                       {produit.image_url ? (
                         <img
                           src={produit.image_url}
                           alt={produit.nom}
-                          className="h-16 w-16 rounded object-cover flex-shrink-0"
+                          className="h-12 w-12 lg:h-16 lg:w-16 rounded object-cover flex-shrink-0"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}
                         />
                       ) : (
-                        <div className="h-16 w-16 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
-                          <Package className="h-8 w-8 text-gray-400" />
+                        <div className="h-12 w-12 lg:h-16 lg:w-16 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <Package className="h-6 w-6 lg:h-8 lg:w-8 text-gray-400" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{produit.nom}</p>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="font-medium text-gray-900 truncate text-xs lg:text-base">{produit.nom}</p>
+                        <p className="text-xs lg:text-sm text-gray-500 mt-0.5 lg:mt-1">
                           {Number(produit.prix_vente).toFixed(2)} MAD
                         </p>
-                        <p className={`text-xs mt-1 ${
+                        <p className={`text-[10px] lg:text-xs mt-0.5 lg:mt-1 ${
                           produit.stock_actuel <= 0
                             ? 'text-red-500'
                             : produit.stock_actuel <= produit.stock_min
@@ -549,37 +747,71 @@ const POS = () => {
                 ))}
               </div>
             ) : search.length >= 2 ? (
-              <div className="text-center text-gray-500 mt-8">
+              <div className="text-center text-gray-500 mt-6 text-sm">
                 Aucun produit trouvé
               </div>
             ) : (
-              <div className="text-center text-gray-500 mt-8">
+              <div className="text-center text-gray-500 mt-6 text-sm">
                 {loadingProduits ? 'Recherche...' : 'Tapez pour rechercher un produit'}
               </div>
             )}
           </div>
+          
+          {/* Bouton suivant mobile - Étape 2 → Panier */}
+          {panier.length > 0 && (
+            <div className="lg:hidden p-2 border-t border-gray-200 bg-white">
+              <button
+                onClick={() => setCurrentStep(3)}
+                className="w-full bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center"
+              >
+                Voir le panier ({panier.length})
+                <ChevronRight className="h-4 w-4 ml-1.5" />
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Panneau droit - Panier */}
-        <div className="w-1/2 flex flex-col bg-white">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <ShoppingCart className="h-6 w-6 mr-2" />
-                Panier
-              </h2>
+        {/* Panneau droit - Panier (step 3 mobile) + Paiement (step 4 mobile) */}
+        <div className={`${(currentStep === 3 || currentStep === 4) ? 'flex' : 'hidden'} lg:flex w-full lg:w-1/2 flex-col bg-white min-h-0`}>
+          <div className="p-2 lg:p-4 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center justify-between mb-2 lg:mb-4">
               <div className="flex items-center space-x-2">
+                {/* Bouton retour mobile */}
+                <button
+                  onClick={() => setCurrentStep(currentStep === 4 ? 3 : 2)}
+                  className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg"
+                >
+                  <ChevronRight className="h-4 w-4 rotate-180 text-gray-600" />
+                </button>
+                <h2 className="text-base lg:text-xl font-bold text-gray-800 flex items-center">
+                  {currentStep === 4 ? (
+                    <>
+                      <CreditCard className="h-4 w-4 lg:h-6 w-6 mr-1.5 lg:mr-2 lg:hidden" />
+                      <ShoppingCart className="h-4 w-4 lg:h-6 w-6 mr-1.5 lg:mr-2 hidden lg:block" />
+                      <span className="lg:hidden">Paiement</span>
+                      <span className="hidden lg:inline">Panier</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-4 w-4 lg:h-6 w-6 mr-1.5 lg:mr-2" />
+                      Panier
+                    </>
+                  )}
+                </h2>
+              </div>
+              {/* Dépense + type document : masqués en step 3 et 4 (panier + paiement) sur mobile */}
+              <div className={`items-center space-x-1.5 lg:space-x-2 ${(currentStep === 3 || currentStep === 4) ? 'hidden lg:flex' : 'flex'}`}>
                 <button
                   onClick={() => setShowDepense(true)}
-                  className="px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex items-center"
+                  className="px-2 py-1.5 lg:px-3 lg:py-2 bg-red-600 text-white rounded-lg text-xs lg:text-sm font-medium hover:bg-red-700 flex items-center"
                 >
-                  <DollarSign className="h-4 w-4 mr-1" />
+                  <DollarSign className="h-3.5 w-3.5 lg:h-4 w-4 mr-1" />
                   Dépense
                 </button>
                 <select
                   value={typeDocument}
                   onChange={(e) => setTypeDocument(e.target.value as any)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="px-2 py-1.5 lg:px-3 lg:py-2 border border-gray-300 rounded-lg text-xs lg:text-sm"
                 >
                   <option value="ticket">Ticket</option>
                   <option value="facture">Facture</option>
@@ -589,8 +821,8 @@ const POS = () => {
               </div>
             </div>
 
-            {/* Sélection client */}
-            <div className="mb-4 relative">
+            {/* Sélection client (desktop uniquement; mobile = étape 1) */}
+            <div className="mb-2 lg:mb-4 relative hidden lg:block">
               <div className="flex items-center space-x-2">
                 <User className="h-5 w-5 text-gray-400" />
                 <input
@@ -667,8 +899,8 @@ const POS = () => {
             </div>
           </div>
 
-          {/* Liste du panier */}
-          <div className="flex-1 overflow-y-auto p-4">
+          {/* Liste du panier - masquer sur mobile étape 4 (on affiche seulement le bloc paiement) - flex-1 min-h-0 pour que le scroll fonctionne */}
+          <div className={`flex-1 min-h-0 overflow-y-auto p-2 lg:p-4 ${currentStep === 4 ? 'hidden lg:block' : ''}`}>
             {panier.length === 0 ? (
               <div className="text-center text-gray-500 mt-8">
                 <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-gray-300" />
@@ -679,36 +911,36 @@ const POS = () => {
                 {panier.map((ligne) => (
                   <div
                     key={ligne.produit_id}
-                    className="bg-gray-50 p-3 rounded-lg"
+                    className="bg-gray-50 p-2 lg:p-3 rounded-lg"
                   >
-                    <div className="flex items-start space-x-3 mb-2">
+                    <div className="flex items-start space-x-2 lg:space-x-3 mb-1.5 lg:mb-2">
                       {ligne.image_url ? (
                         <img
                           src={ligne.image_url}
                           alt={ligne.nom}
-                          className="h-12 w-12 rounded object-cover flex-shrink-0"
+                          className="h-10 w-10 lg:h-12 lg:w-12 rounded object-cover flex-shrink-0"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}
                         />
                       ) : (
-                        <div className="h-12 w-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
-                          <Package className="h-6 w-6 text-gray-400" />
+                        <div className="h-10 w-10 lg:h-12 lg:w-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <Package className="h-5 w-5 lg:h-6 lg:w-6 text-gray-400" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-gray-900 truncate">{ligne.nom}</p>
+                          <p className="font-medium text-gray-900 truncate text-xs lg:text-base">{ligne.nom}</p>
                           <button
                             onClick={() => supprimerLigne(ligne.produit_id)}
-                            className="text-danger hover:text-red-700 ml-2 flex-shrink-0"
+                            className="text-danger hover:text-red-700 ml-1 flex-shrink-0 p-0.5"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5 lg:h-4 w-4" />
                           </button>
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="grid grid-cols-3 gap-1.5 lg:gap-2 text-xs lg:text-sm">
                       <div>
                         <label className="text-xs text-gray-600">Prix unitaire</label>
                         {editingLigne?.id === ligne.produit_id && editingLigne.field === 'prix' ? (
@@ -800,8 +1032,8 @@ const POS = () => {
                         )}
                       </div>
                     </div>
-                    <div className="mt-2 text-right">
-                      <span className="font-bold text-gray-900">
+                    <div className="mt-1.5 lg:mt-2 text-right">
+                      <span className="font-bold text-gray-900 text-xs lg:text-base">
                         {Number(ligne.montant_total).toFixed(2)} MAD
                       </span>
                     </div>
@@ -811,8 +1043,53 @@ const POS = () => {
             )}
           </div>
 
-          {/* Totaux et paiement */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50">
+          {/* Bouton suivant mobile - Étape 3 → Paiement (toujours visible en bas, pas dans le scroll) */}
+          {panier.length > 0 && currentStep === 3 && (
+            <div className="lg:hidden flex-shrink-0 p-2 border-t border-gray-200 bg-white">
+              <div className="mb-2 flex justify-between text-xs">
+                <span className="text-gray-600">Total TTC:</span>
+                <span className="font-bold text-sm text-primary">{totalTTC.toFixed(2)} MAD</span>
+              </div>
+              <button
+                onClick={() => setCurrentStep(4)}
+                className="w-full bg-primary text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center"
+              >
+                Passer au paiement
+                <ChevronRight className="h-4 w-4 ml-1.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Totaux et paiement - Desktop toujours visible, Mobile seulement étape 4 */}
+          <div className={`${currentStep === 4 ? 'flex' : 'hidden'} lg:flex flex-col p-2 lg:p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0`}>
+            {/* Bouton retour mobile */}
+            <div className="lg:hidden mb-2 flex-shrink-0">
+              <button
+                onClick={() => setCurrentStep(3)}
+                className="flex items-center text-xs text-gray-600 hover:text-gray-800"
+              >
+                <ChevronRight className="h-4 w-4 rotate-180 mr-1.5" />
+                Retour au panier
+              </button>
+            </div>
+            {/* Option Payer le crédit (step Paiement) — client avec solde > 0 */}
+            {!showPaiementCredit && clientSelectionne && (clientSelectionne.solde || 0) > 0 && (
+              <div className="mb-3 flex-shrink-0">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 lg:p-3">
+                  <p className="text-xs lg:text-sm text-gray-700 mb-2">
+                    Ce client a un crédit de <span className="font-bold text-amber-800">{Number(clientSelectionne.solde).toFixed(2)} MAD</span>.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowPaiementCredit(true)}
+                    className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Payer le crédit
+                  </button>
+                </div>
+              </div>
+            )}
             {showPaiementCredit && clientSelectionne ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -916,46 +1193,46 @@ const POS = () => {
               </div>
             ) : (
               <>
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
+                <div className="space-y-1.5 lg:space-y-2 mb-2 lg:mb-4">
+                  <div className="flex justify-between text-xs lg:text-sm">
                     <span className="text-gray-600">Remise:</span>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1.5">
                       <input
                         type="number"
                         value={remise}
                         onChange={(e) => setRemise(parseFloat(e.target.value) || 0)}
                         min="0"
                         max="100"
-                        className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                        className="w-14 lg:w-20 px-1.5 lg:px-2 py-1 border border-gray-300 rounded text-xs lg:text-sm"
                       />
-                      <span>%</span>
+                      <span className="text-xs">%</span>
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs lg:text-sm">
                     <span className="text-gray-600">Total HT:</span>
                     <span className="font-medium">{totalHT.toFixed(2)} MAD</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs lg:text-sm">
                     <span className="text-gray-600">TVA:</span>
                     <span className="font-medium">{totalTVA.toFixed(2)} MAD</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <div className="flex justify-between text-sm lg:text-lg font-bold border-t pt-1.5 lg:pt-2">
                     <span>Total TTC:</span>
                     <span className="text-primary">{totalTTC.toFixed(2)} MAD</span>
                   </div>
 
                   {modePaiement === 'especes' && (
-                    <div className="mt-4">
-                      <label className="block text-sm text-gray-600 mb-2">Monnaie reçue:</label>
+                    <div className="mt-2 lg:mt-4">
+                      <label className="block text-xs lg:text-sm text-gray-600 mb-1 lg:mb-2">Monnaie reçue:</label>
                       <input
                         type="number"
                         value={monnaieRecue}
                         onChange={(e) => setMonnaieRecue(parseFloat(e.target.value) || 0)}
                         step="0.01"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm"
                       />
                       {monnaieRecue > 0 && (
-                        <p className="mt-2 text-sm font-medium">
+                        <p className="mt-1 lg:mt-2 text-xs lg:text-sm font-medium">
                           Monnaie à rendre: {monnaieARendre >= 0 ? monnaieARendre.toFixed(2) : '0.00'} MAD
                         </p>
                       )}
@@ -963,46 +1240,46 @@ const POS = () => {
                   )}
 
                   {(modePaiement === 'carte' || modePaiement === 'virement') && (
-                    <div className="mt-4">
-                      <label className="block text-sm text-gray-600 mb-2">Référence (optionnel):</label>
+                    <div className="mt-2 lg:mt-4">
+                      <label className="block text-xs lg:text-sm text-gray-600 mb-1 lg:mb-2">Référence (optionnel):</label>
                       <input
                         type="text"
                         value={referencePaiement}
                         onChange={(e) => setReferencePaiement(e.target.value)}
                         placeholder="N° transaction / virement"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm"
                       />
                     </div>
                   )}
 
                   {modePaiement === 'cheque' && (
                     <>
-                      <div className="mt-4">
-                        <label className="block text-sm text-gray-600 mb-2">Numéro de chèque *:</label>
+                      <div className="mt-2 lg:mt-4">
+                        <label className="block text-xs lg:text-sm text-gray-600 mb-1 lg:mb-2">Numéro de chèque *:</label>
                         <input
                           type="text"
                           value={referencePaiement}
                           onChange={(e) => setReferencePaiement(e.target.value)}
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
-                      <div className="mt-4">
-                        <label className="block text-sm text-gray-600 mb-2">Date du chèque *:</label>
+                      <div className="mt-2 lg:mt-4">
+                        <label className="block text-xs lg:text-sm text-gray-600 mb-1 lg:mb-2">Date du chèque *:</label>
                         <input
                           type="date"
                           value={dateCheque}
                           onChange={(e) => setDateCheque(e.target.value)}
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
                     </>
                   )}
 
                   {modePaiement === 'credit' && (
-                    <div className="mt-4">
-                      <label className="block text-sm text-gray-600 mb-2">Montant payé (optionnel):</label>
+                    <div className="mt-2 lg:mt-4">
+                      <label className="block text-xs lg:text-sm text-gray-600 mb-1 lg:mb-2">Montant payé (optionnel):</label>
                       <input
                         type="number"
                         value={montantPaye}
@@ -1010,16 +1287,16 @@ const POS = () => {
                         step="0.01"
                         min="0"
                         max={totalTTC}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm"
                       />
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-[10px] lg:text-xs text-gray-500">
                         Reste à payer: {(totalTTC - montantPaye).toFixed(2)} MAD
                       </p>
                     </div>
                   )}
 
-                  <div className="mt-4">
-                    <label className="block text-sm text-gray-600 mb-2">Mode de paiement:</label>
+                  <div className="mt-2 lg:mt-4">
+                    <label className="block text-xs lg:text-sm text-gray-600 mb-1 lg:mb-2">Mode de paiement:</label>
                     <select
                       value={modePaiement}
                       onChange={(e) => {
@@ -1029,7 +1306,7 @@ const POS = () => {
                         setDateCheque('');
                         setMontantPaye(0);
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm"
                     >
                       <option value="especes">Espèces</option>
                       <option value="carte">Carte bancaire</option>
@@ -1043,7 +1320,7 @@ const POS = () => {
                 <button
                   onClick={finaliserVente}
                   disabled={loading || panier.length === 0}
-                  className="w-full bg-primary text-white py-3 rounded-lg font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-primary text-white py-2 lg:py-3 rounded-lg font-bold text-sm lg:text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Enregistrement...' : `Finaliser la vente (${totalTTC.toFixed(2)} MAD)`}
                 </button>
@@ -1055,12 +1332,12 @@ const POS = () => {
 
       {/* Modal Dépense */}
       {showDepense && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                  <DollarSign className="h-6 w-6 mr-2 text-red-600" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-4 lg:p-6">
+              <div className="flex items-center justify-between mb-3 lg:mb-4">
+                <h2 className="text-base lg:text-xl font-bold text-gray-800 flex items-center">
+                  <DollarSign className="h-4 w-4 lg:h-6 w-6 mr-1.5 lg:mr-2 text-red-600" />
                   Enregistrer une dépense
                 </h2>
                 <button
@@ -1073,21 +1350,21 @@ const POS = () => {
                     setReferencePaiementDepense('');
                     setDateChequeDepense('');
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-0.5"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4 lg:h-5 w-5" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 lg:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                     Catégorie de dépense *
                   </label>
                   <select
                     value={categorieDepense}
                     onChange={(e) => setCategorieDepense(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                     required
                   >
                     <option value="">Sélectionner une catégorie</option>
@@ -1105,7 +1382,7 @@ const POS = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                     Montant (MAD) *
                   </label>
                   <input
@@ -1114,28 +1391,28 @@ const POS = () => {
                     onChange={(e) => setMontantDepense(parseFloat(e.target.value) || 0)}
                     step="0.01"
                     min="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="0.00"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                     Description / Motif *
                   </label>
                   <textarea
                     value={descriptionDepense}
                     onChange={(e) => setDescriptionDepense(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    rows={3}
+                    className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                    rows={2}
                     placeholder="Décrivez la dépense..."
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                     Mode de paiement *
                   </label>
                   <select
@@ -1145,7 +1422,7 @@ const POS = () => {
                       setReferencePaiementDepense('');
                       setDateChequeDepense('');
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="especes">Espèces</option>
                     <option value="carte">Carte bancaire</option>
@@ -1156,7 +1433,7 @@ const POS = () => {
 
                 {modePaiementDepense === 'carte' || modePaiementDepense === 'virement' ? (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                       Référence (optionnel)
                     </label>
                     <input
@@ -1164,7 +1441,7 @@ const POS = () => {
                       value={referencePaiementDepense}
                       onChange={(e) => setReferencePaiementDepense(e.target.value)}
                       placeholder="N° transaction / virement"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
                 ) : null}
@@ -1172,33 +1449,33 @@ const POS = () => {
                 {modePaiementDepense === 'cheque' && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                         Numéro de chèque *
                       </label>
                       <input
                         type="text"
                         value={referencePaiementDepense}
                         onChange={(e) => setReferencePaiementDepense(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                         Date du chèque *
                       </label>
                       <input
                         type="date"
                         value={dateChequeDepense}
                         onChange={(e) => setDateChequeDepense(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full px-2 lg:px-3 py-1.5 lg:py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
                   </>
                 )}
 
-                <div className="flex space-x-3 pt-4">
+                <div className="flex space-x-2 lg:space-x-3 pt-3 lg:pt-4">
                   <button
                     onClick={() => {
                       setShowDepense(false);
@@ -1209,14 +1486,14 @@ const POS = () => {
                       setReferencePaiementDepense('');
                       setDateChequeDepense('');
                     }}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300"
+                    className="flex-1 px-3 lg:px-4 py-1.5 lg:py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={enregistrerDepense}
                     disabled={loading || !categorieDepense || montantDepense <= 0 || !descriptionDepense}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-3 lg:px-4 py-1.5 lg:py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Enregistrement...' : `Enregistrer (${montantDepense.toFixed(2)} MAD)`}
                   </button>
