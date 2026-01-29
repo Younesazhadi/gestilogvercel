@@ -43,16 +43,7 @@ const POS = () => {
   const [dateChequeDepense, setDateChequeDepense] = useState('');
   const [editingLigne, setEditingLigne] = useState<{ id: number; field: 'prix' | 'tva' | 'quantite' } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRefDesktop = useRef<HTMLInputElement>(null);
   const clientSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const focusSearch = () => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      focusSearch();
-    } else {
-      searchInputRefDesktop.current?.focus();
-    }
-  };
 
   useEffect(() => {
     if (search.length >= 2) {
@@ -65,7 +56,7 @@ const POS = () => {
   }, [search]);
 
   useEffect(() => {
-    focusSearch();
+    searchInputRef.current?.focus();
   }, []);
 
   // Charger le client depuis les paramètres d'URL
@@ -199,7 +190,7 @@ const POS = () => {
     }
     // Ne pas vider la recherche ni les produits pour permettre d'ajouter d'autres produits
     // Remettre juste le focus sur le champ de recherche
-    focusSearch();
+    searchInputRef.current?.focus();
   };
 
   const modifierQuantite = (produitId: number, delta: number) => {
@@ -364,7 +355,7 @@ const POS = () => {
       setReferencePaiement('');
       setDateCheque('');
       setMontantPaye(0);
-      focusSearch();
+      searchInputRef.current?.focus();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erreur lors de la vente');
     } finally {
@@ -429,7 +420,7 @@ const POS = () => {
       setModePaiementDepense('especes');
       setReferencePaiementDepense('');
       setDateChequeDepense('');
-      focusSearch();
+      searchInputRef.current?.focus();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erreur lors de l\'enregistrement de la dépense');
     } finally {
@@ -490,32 +481,15 @@ const POS = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Sur mobile: barre de recherche en premier, fixe en haut */}
-      <div className="flex-shrink-0 p-3 sm:p-4 border-b border-gray-200 bg-white lg:hidden">
-        <h1 className="text-lg font-bold text-gray-800 mb-3">Point de Vente</h1>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Rechercher un produit..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base"
-            autoFocus
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
-        {/* Panneau gauche - Recherche (desktop) et produits — sur mobile affiché en 2e (ordre logique: panier puis produits) */}
-        <div className="flex flex-col w-full lg:w-1/2 border-r-0 lg:border-r border-gray-200 order-2 lg:order-1 min-h-0">
-          <div className="hidden lg:block p-4 border-b border-gray-200 bg-white">
+      <div className="flex-1 flex overflow-hidden">
+        {/* Panneau gauche - Recherche et produits */}
+        <div className="w-1/2 border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-200 bg-white">
             <h1 className="text-2xl font-bold text-gray-800 mb-4">Point de Vente</h1>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
-                ref={searchInputRefDesktop}
+                ref={searchInputRef}
                 type="text"
                 placeholder="Rechercher un produit (nom, code-barres, référence)..."
                 value={search}
@@ -526,9 +500,9 @@ const POS = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 min-h-0">
+          <div className="flex-1 overflow-y-auto p-4">
             {produits.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {produits.map((produit) => (
                   <button
                     key={produit.id}
@@ -586,12 +560,12 @@ const POS = () => {
           </div>
         </div>
 
-        {/* Panneau droit - Panier — sur mobile affiché en 1er (ordre: panier puis produits) */}
-        <div className="w-full lg:w-1/2 flex flex-col bg-white order-1 lg:order-2 min-h-0 flex-shrink-0 lg:flex-shrink">
-          <div className="p-3 sm:p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center">
-                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
+        {/* Panneau droit - Panier */}
+        <div className="w-1/2 flex flex-col bg-white">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <ShoppingCart className="h-6 w-6 mr-2" />
                 Panier
               </h2>
               <div className="flex items-center space-x-2">
@@ -838,7 +812,7 @@ const POS = () => {
           </div>
 
           {/* Totaux et paiement */}
-          <div className="flex-shrink-0 p-3 sm:p-4 border-t border-gray-200 bg-gray-50">
+          <div className="p-4 border-t border-gray-200 bg-gray-50">
             {showPaiementCredit && clientSelectionne ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
