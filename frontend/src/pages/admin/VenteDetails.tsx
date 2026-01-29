@@ -261,7 +261,8 @@ const VenteDetails = () => {
 
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Lignes de vente</h2>
-        <table className="min-w-full">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
@@ -285,6 +286,7 @@ const VenteDetails = () => {
             ))}
           </tbody>
         </table>
+        </div>
 
         <div className="mt-6 pt-6 border-t">
           <div className="flex justify-end">
