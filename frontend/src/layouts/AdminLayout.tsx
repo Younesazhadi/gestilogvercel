@@ -136,9 +136,9 @@ const AdminLayout = () => {
   });
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex flex-col lg:flex-row h-screen bg-gray-100">
       <Sidebar menuItems={menuItems} />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pt-16 lg:pt-0">
         <Routes>
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="produits" element={<ProduitsList />} />

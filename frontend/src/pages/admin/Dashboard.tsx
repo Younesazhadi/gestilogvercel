@@ -89,27 +89,27 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="p-8" ref={dashboardRef}>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+    <div className="p-4 sm:p-6 lg:p-8" ref={dashboardRef}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Dashboard</h1>
         <button
           onClick={exportToPDF}
           disabled={exporting || loading}
-          className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full sm:w-auto"
         >
           <Download className="h-5 w-5" />
-          <span>{exporting ? 'Exportation...' : 'Exporter en PDF'}</span>
+          <span className="text-sm sm:text-base">{exporting ? 'Exportation...' : 'Exporter en PDF'}</span>
         </button>
       </div>
 
       <div ref={contentRef}>
         {/* Cartes de statistiques principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">CA NET du jour</p>
-              <p className={`text-2xl font-bold ${(stats?.ca?.net?.jour || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">CA NET du jour</p>
+              <p className={`text-xl sm:text-2xl font-bold truncate ${(stats?.ca?.net?.jour || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
                 {Number(stats?.ca?.net?.jour || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -140,15 +140,15 @@ const AdminDashboard = () => {
                 {stats?.ca?.jour?.nb_ventes || 0} opérations
               </p>
             </div>
-            <DollarSign className="h-12 w-12 text-success" />
+            <DollarSign className="h-8 w-8 sm:h-12 sm:w-12 text-success flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">CA NET de la semaine</p>
-              <p className={`text-2xl font-bold ${(stats?.ca?.net?.semaine || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">CA NET de la semaine</p>
+              <p className={`text-xl sm:text-2xl font-bold truncate ${(stats?.ca?.net?.semaine || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
                 {Number(stats?.ca?.net?.semaine || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -168,15 +168,15 @@ const AdminDashboard = () => {
                 </p>
               )}
             </div>
-            <TrendingUp className="h-12 w-12 text-primary" />
+            <TrendingUp className="h-8 w-8 sm:h-12 sm:w-12 text-primary flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">CA NET du mois</p>
-              <p className={`text-2xl font-bold ${(stats?.ca?.net?.mois || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">CA NET du mois</p>
+              <p className={`text-xl sm:text-2xl font-bold truncate ${(stats?.ca?.net?.mois || 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
                 {Number(stats?.ca?.net?.mois || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -188,15 +188,15 @@ const AdminDashboard = () => {
                 )}
               </p>
             </div>
-            <ShoppingCart className="h-12 w-12 text-warning" />
+            <ShoppingCart className="h-8 w-8 sm:h-12 sm:w-12 text-warning flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">Dépenses du jour</p>
-              <p className="text-2xl font-bold text-red-600">
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">Dépenses du jour</p>
+              <p className="text-xl sm:text-2xl font-bold truncate text-red-600">
                 {Number(stats?.ca?.depenses?.jour || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -205,70 +205,70 @@ const AdminDashboard = () => {
                 )}
               </p>
             </div>
-            <DollarSign className="h-12 w-12 text-red-600" />
+            <DollarSign className="h-8 w-8 sm:h-12 sm:w-12 text-red-600 flex-shrink-0 ml-2" />
           </div>
         </div>
       </div>
 
       {/* Cartes supplémentaires - Statistiques générales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-gray-500 text-sm">Panier moyen (jour)</p>
-              <p className="text-2xl font-bold text-gray-800">
+              <p className="text-gray-500 text-xs sm:text-sm">Panier moyen (jour)</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
                 {Number(stats?.statistiques?.panier_moyen_jour || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Mois: {Number(stats?.statistiques?.panier_moyen_mois || 0).toFixed(2)} MAD
               </p>
             </div>
-            <ShoppingCart className="h-12 w-12 text-primary" />
+            <ShoppingCart className="h-8 w-8 sm:h-12 sm:w-12 text-primary flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">Total clients</p>
-              <p className="text-2xl font-bold text-gray-800">
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">Total clients</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
                 {stats?.statistiques?.total_clients || 0}
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Clients actifs
               </p>
             </div>
-            <Users className="h-12 w-12 text-primary" />
+            <Users className="h-8 w-8 sm:h-12 sm:w-12 text-primary flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">Total produits</p>
-              <p className="text-2xl font-bold text-gray-800">
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">Total produits</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
                 {stats?.statistiques?.total_produits || 0}
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Produits actifs
               </p>
             </div>
-            <Package className="h-12 w-12 text-warning" />
+            <Package className="h-8 w-8 sm:h-12 sm:w-12 text-warning flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">Valeur du stock</p>
-              <p className="text-2xl font-bold text-gray-800">
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">Valeur du stock</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
                 {Number(stats?.statistiques?.valeur_stock || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Stock total
               </p>
             </div>
-            <Package className="h-12 w-12 text-success" />
+            <Package className="h-8 w-8 sm:h-12 sm:w-12 text-success flex-shrink-0 ml-2" />
           </div>
         </div>
       </div>
@@ -278,53 +278,53 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-gray-500 text-sm">Crédits en attente</p>
-              <p className="text-2xl font-bold text-gray-800">
+              <p className="text-gray-500 text-xs sm:text-sm">Crédits en attente</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
                 {Number(stats?.credits?.total || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 {stats?.credits?.nb_clients || 0} client(s)
               </p>
             </div>
-            <Users className="h-12 w-12 text-warning" />
+            <Users className="h-8 w-8 sm:h-12 sm:w-12 text-warning flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">Chèques en attente</p>
-              <p className="text-2xl font-bold text-gray-800">
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">Chèques en attente</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
                 {Number(stats?.cheques?.en_attente?.montant || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 {stats?.cheques?.en_attente?.nb || 0} chèque(s)
               </p>
             </div>
-            <CreditCard className="h-12 w-12 text-primary" />
+            <CreditCard className="h-8 w-8 sm:h-12 sm:w-12 text-primary flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">Prêts pour dépôt</p>
-              <p className="text-2xl font-bold text-gray-800">
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">Prêts pour dépôt</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
                 {Number(stats?.cheques?.pret_depot?.montant || 0).toFixed(2)} MAD
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 {stats?.cheques?.pret_depot?.nb || 0} chèque(s)
               </p>
             </div>
-            <Calendar className="h-12 w-12 text-success" />
+            <Calendar className="h-8 w-8 sm:h-12 sm:w-12 text-success flex-shrink-0 ml-2" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm">Top produits (jour)</p>
-              <p className="text-2xl font-bold text-gray-800">
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs sm:text-sm">Top produits (jour)</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
                 {stats?.top_produits_jour?.length || 0}
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -346,7 +346,7 @@ const AdminDashboard = () => {
                 Ce mois-ci
               </p>
             </div>
-            <AlertTriangle className="h-12 w-12 text-red-600" />
+            <AlertTriangle className="h-8 w-8 sm:h-12 sm:w-12 text-red-600 flex-shrink-0 ml-2" />
           </div>
         </div>
       </div>
