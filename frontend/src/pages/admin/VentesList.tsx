@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Search, Eye, X, FileText, Receipt } from 'lucide-react';
+import { Search, Eye, X, Receipt } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Vente } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';

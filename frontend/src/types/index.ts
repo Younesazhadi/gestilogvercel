@@ -22,6 +22,7 @@ export interface Magasin {
   statut: 'actif' | 'suspendu' | 'expire';
   date_creation: string;
   date_expiration_abonnement: string | null;
+  notes?: string | null;
 }
 
 export interface Produit {
@@ -48,7 +49,7 @@ export interface Vente {
   id: number;
   magasin_id: number;
   numero_vente: string;
-  type_document: 'ticket' | 'facture' | 'devis' | 'bl' | 'paiement_credit';
+  type_document: 'ticket' | 'facture' | 'devis' | 'bl' | 'paiement_credit' | 'paiement_cheque' | 'depense';
   client_id: number | null;
   user_id: number;
   date_vente: string;

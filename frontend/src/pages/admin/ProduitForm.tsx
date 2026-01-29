@@ -6,7 +6,6 @@ import toast from 'react-hot-toast';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { buildRoute } from '../../utils/routes';
-import { formatDateForInput } from '../../utils/dateUtils';
 
 interface ProduitFormData {
   nom: string;

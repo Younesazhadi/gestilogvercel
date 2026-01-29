@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Edit, Trash2, Package, X, Check, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { Plan } from '../../types';
@@ -95,9 +95,7 @@ const PlansList = () => {
         nom: data.nom,
         prix_mensuel: parseFloat(data.prix_mensuel.toString()),
         nb_utilisateurs_max: parseInt(data.nb_utilisateurs_max.toString()),
-        nb_produits_max: data.nb_produits_max === null || data.nb_produits_max === '' 
-          ? null 
-          : parseInt(data.nb_produits_max.toString()),
+        nb_produits_max: data.nb_produits_max == null ? null : Number(data.nb_produits_max),
         fonctionnalites: data.fonctionnalites || {},
         actif: data.actif !== undefined ? data.actif : true,
       };
@@ -325,7 +323,6 @@ const PlansList = () => {
 
   // Sélectionner/désélectionner toutes les fonctionnalités
   const toggleToutesLesFonctionnalites = () => {
-    const current = watch('fonctionnalites') || {};
     const newFonctionnalites: Record<string, boolean> = {};
     
     if (toutesSelectionnees) {
@@ -340,16 +337,6 @@ const PlansList = () => {
     }
   };
 
-  // Créer un objet modules pour la compatibilité avec le code existant
-  const modules = modulesConfig.reduce((acc, module) => {
-    if (module.subModules) {
-      // Si le module a des sous-modules, combiner toutes les fonctionnalités des sous-modules
-      acc[module.key] = module.subModules.flatMap(subModule => subModule.features);
-    } else {
-      acc[module.key] = module.features;
-    }
-    return acc;
-  }, {} as Record<string, string[]>);
 
   // Vérifier si toutes les fonctionnalités d'un module sont sélectionnées
   const moduleEstComplet = (moduleKeys: string[]) => {

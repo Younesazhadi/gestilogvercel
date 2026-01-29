@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit, Trash2, Truck, X } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { Fournisseur } from '../../types';

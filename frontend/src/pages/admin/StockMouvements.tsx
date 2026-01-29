@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Search, Package, ArrowDown, ArrowUp, Edit, Filter, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Edit, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { MouvementStock, Produit } from '../../types';

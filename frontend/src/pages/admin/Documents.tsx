@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FileText, Receipt, FileCheck, Truck, Search, Eye, Printer, Mail, DollarSign, Download, Plus, X, Package, User, ShoppingCart, Minus, Trash2 } from 'lucide-react';
+import { FileText, Receipt, FileCheck, Truck, Search, Eye, Mail, DollarSign, Download, Plus, X, Package, User, ShoppingCart, Minus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Vente, Produit, Client } from '../../types';
 import ChequesList from './ChequesList';
@@ -262,7 +262,7 @@ const Documents = () => {
 
     setCreating(true);
     try {
-      const { totalHT, totalTVA, totalTTC } = calculerTotal();
+      calculerTotal(); // récap pour cohérence (totaux dérivés des lignes côté backend)
       const response = await axios.post('/admin/ventes', {
         type_document: typeDocument,
         client_id: clientSelectionne?.id || null,

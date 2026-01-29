@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Store, DollarSign, AlertTriangle, TrendingUp, Clock, XCircle } from 'lucide-react';
+import { Store, DollarSign, AlertTriangle, Clock, XCircle } from 'lucide-react';
 
 const SuperAdminDashboard = () => {
   const [stats, setStats] = useState<any>(null);
@@ -31,7 +31,6 @@ const SuperAdminDashboard = () => {
   // Extraire les statistiques des magasins par statut
   const magasinsActifs = stats?.magasins?.find((m: any) => m.statut === 'actif')?.count || 0;
   const magasinsSuspendus = stats?.magasins?.find((m: any) => m.statut === 'suspendu')?.count || 0;
-  const magasinsExpires = stats?.magasins?.find((m: any) => m.statut === 'expire')?.count || 0;
 
   // Fonction pour calculer les jours restants
   const getDaysRemaining = (expirationDate: string) => {

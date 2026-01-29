@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { FileText, TrendingUp, DollarSign, Package, Download } from 'lucide-react';
+import { FileText, DollarSign, Package } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 
@@ -198,7 +198,7 @@ const Rapports = () => {
                           outerRadius={80}
                           label
                         >
-                          {ventesParCategorie.map((entry, index) => (
+                          {ventesParCategorie.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>

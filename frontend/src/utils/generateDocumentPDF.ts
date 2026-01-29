@@ -91,20 +91,20 @@ export const generateDocumentPDF = async (
   const margin = 15;
   let yPos = margin;
 
-  // Couleurs
-  const primaryColor = [59, 130, 246]; // Blue-500
-  const grayColor = [107, 114, 128]; // Gray-500
+  // Couleurs (tuple pour jsPDF)
+  const primaryColor: [number, number, number] = [59, 130, 246]; // Blue-500
+  const grayColor: [number, number, number] = [107, 114, 128]; // Gray-500
 
   // Fonction pour ajouter du texte
   const addText = (text: string, x: number, y: number, options: any = {}) => {
     pdf.setFontSize(options.size || 10);
-    pdf.setTextColor(...(options.color || [0, 0, 0]));
+    pdf.setTextColor(...((options.color || [0, 0, 0]) as [number, number, number]));
     pdf.setFont(options.font || 'helvetica', options.style || 'normal');
     pdf.text(text, x, y);
   };
 
   // Fonction pour dessiner une ligne
-  const drawLine = (x1: number, y1: number, x2: number, y2: number, color: number[] = [0, 0, 0]) => {
+  const drawLine = (x1: number, y1: number, x2: number, y2: number, color: [number, number, number] = [0, 0, 0]) => {
     pdf.setDrawColor(...color);
     pdf.setLineWidth(0.5);
     pdf.line(x1, y1, x2, y2);

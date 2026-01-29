@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit, Trash2, User, X, Lock, Unlock } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import Pagination from '../../components/Pagination';

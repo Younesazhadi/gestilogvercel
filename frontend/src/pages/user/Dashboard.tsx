@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, Package } from 'lucide-react';
+import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard = () => {

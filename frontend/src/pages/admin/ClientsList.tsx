@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit, Trash2, User, DollarSign, X, CreditCard } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
