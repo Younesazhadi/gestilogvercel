@@ -207,6 +207,7 @@ const ProduitsList = () => {
               ))}
             </tbody>
           </table>
+          </div>
           {pagination.totalPages !== undefined && pagination.totalPages > 0 && (
             <Pagination
               currentPage={pagination.page || currentPage}
