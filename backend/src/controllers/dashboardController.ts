@@ -6,13 +6,9 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
   try {
     const magasinId = req.user?.magasinId;
 
-    // CA BRUT du jour (revenus uniquement, exclure les ventes à crédit et les chèques non payés)
-    // Inclure les paiements de crédit (sauf par chèque), les paiements de chèques
-    // Les chèques (mode_paiement='cheque') ont toujours montant_ht=0, donc on les exclut
-    // Les paiements de crédit par chèque (type_document='paiement_credit' ET mode_paiement='cheque') sont aussi exclus
-    // Quand un chèque est payé, on crée une nouvelle vente type_document='paiement_cheque' qui est incluse
+    // CA BRUT du jour (revenus uniquement). Inclut la part payée des ventes à crédit (montant_paye).
     const caJour = await pool.query(
-      `SELECT COALESCE(SUM(montant_ttc), 0) as total, COUNT(*) as nb_ventes
+      `SELECT COALESCE(SUM(CASE WHEN mode_paiement = 'credit' AND type_document != 'paiement_credit' THEN COALESCE(montant_paye, 0) ELSE montant_ttc END), 0) as total, COUNT(*) as nb_ventes
        FROM ventes
        WHERE magasin_id = $1 
        AND DATE(date_vente) = CURRENT_DATE
@@ -20,7 +16,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
        AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
+            OR mode_paiement IS NULL OR mode_paiement != 'cheque' OR mode_paiement = 'credit')`,
       [magasinId]
     );
 
@@ -38,9 +34,9 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
     // CA NET du jour = CA brut - Dépenses
     const caNetJour = parseFloat(caJour.rows[0].total) - parseFloat(depensesJour.rows[0].total);
 
-    // CA BRUT de la semaine (revenus uniquement)
+    // CA BRUT de la semaine (revenus uniquement, part payée pour crédit)
     const caSemaine = await pool.query(
-      `SELECT COALESCE(SUM(montant_ttc), 0) as total
+      `SELECT COALESCE(SUM(CASE WHEN mode_paiement = 'credit' AND type_document != 'paiement_credit' THEN COALESCE(montant_paye, 0) ELSE montant_ttc END), 0) as total
        FROM ventes
        WHERE magasin_id = $1 
        AND date_vente >= DATE_TRUNC('week', CURRENT_DATE)
@@ -48,7 +44,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
        AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
+            OR mode_paiement IS NULL OR mode_paiement != 'cheque' OR mode_paiement = 'credit')`,
       [magasinId]
     );
 
@@ -66,9 +62,9 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
     // CA NET de la semaine = CA brut - Dépenses
     const caNetSemaine = parseFloat(caSemaine.rows[0].total) - parseFloat(depensesSemaine.rows[0].total);
 
-    // CA BRUT du mois (revenus uniquement)
+    // CA BRUT du mois (revenus uniquement, part payée pour crédit)
     const caMois = await pool.query(
-      `SELECT COALESCE(SUM(montant_ttc), 0) as total
+      `SELECT COALESCE(SUM(CASE WHEN mode_paiement = 'credit' AND type_document != 'paiement_credit' THEN COALESCE(montant_paye, 0) ELSE montant_ttc END), 0) as total
        FROM ventes
        WHERE magasin_id = $1 
        AND DATE_TRUNC('month', date_vente) = DATE_TRUNC('month', CURRENT_DATE)
@@ -76,7 +72,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
        AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
+            OR mode_paiement IS NULL OR mode_paiement != 'cheque' OR mode_paiement = 'credit')`,
       [magasinId]
     );
 
@@ -101,7 +97,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
 
     // Panier moyen du mois
     const caMoisAvecNb = await pool.query(
-      `SELECT COALESCE(SUM(montant_ttc), 0) as total, COUNT(*) as nb_ventes
+      `SELECT COALESCE(SUM(CASE WHEN mode_paiement = 'credit' AND type_document != 'paiement_credit' THEN COALESCE(montant_paye, 0) ELSE montant_ttc END), 0) as total, COUNT(*) as nb_ventes
        FROM ventes
        WHERE magasin_id = $1 
        AND DATE_TRUNC('month', date_vente) = DATE_TRUNC('month', CURRENT_DATE)
@@ -109,7 +105,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
        AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
+            OR mode_paiement IS NULL OR mode_paiement != 'cheque' OR mode_paiement = 'credit')`,
       [magasinId]
     );
     const panierMoyenMois = parseInt(caMoisAvecNb.rows[0].nb_ventes) > 0
@@ -192,12 +188,12 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
       [magasinId]
     );
 
-    // Évolution des ventes (7 derniers jours) - CA brut et dépenses séparés pour calculer CA net
+    // Évolution des ventes (7 derniers jours) - CA brut (part payée pour crédit) et dépenses
     const evolutionBrut = await pool.query(
       `SELECT 
         DATE(date_vente) as date,
         COUNT(*) as nb_ventes,
-        COALESCE(SUM(montant_ttc), 0) as ca_brut
+        COALESCE(SUM(CASE WHEN mode_paiement = 'credit' AND type_document != 'paiement_credit' THEN COALESCE(montant_paye, 0) ELSE montant_ttc END), 0) as ca_brut
        FROM ventes
        WHERE magasin_id = $1
       AND date_vente >= CURRENT_DATE - INTERVAL '7 days'
@@ -205,7 +201,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
       AND type_document != 'depense'
       AND (type_document = 'paiement_cheque'
            OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-           OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))
+           OR mode_paiement IS NULL OR mode_paiement != 'cheque' OR mode_paiement = 'credit')
        GROUP BY DATE(date_vente)
        ORDER BY date ASC`,
       [magasinId]
@@ -265,9 +261,9 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
-    // CA BRUT d'hier pour comparaison
+    // CA BRUT d'hier pour comparaison (part payée pour crédit)
     const caHier = await pool.query(
-      `SELECT COALESCE(SUM(montant_ttc), 0) as total
+      `SELECT COALESCE(SUM(CASE WHEN mode_paiement = 'credit' AND type_document != 'paiement_credit' THEN COALESCE(montant_paye, 0) ELSE montant_ttc END), 0) as total
        FROM ventes
        WHERE magasin_id = $1 
        AND DATE(date_vente) = CURRENT_DATE - INTERVAL '1 day'
@@ -275,7 +271,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
        AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
+            OR mode_paiement IS NULL OR mode_paiement != 'cheque' OR mode_paiement = 'credit')`,
       [magasinId]
     );
 
@@ -293,9 +289,9 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
     // CA NET d'hier = CA brut - Dépenses
     const caNetHier = parseFloat(caHier.rows[0].total) - parseFloat(depensesHier.rows[0].total);
 
-    // CA BRUT de la semaine dernière pour comparaison
+    // CA BRUT de la semaine dernière pour comparaison (part payée pour crédit)
     const caSemaineDerniere = await pool.query(
-      `SELECT COALESCE(SUM(montant_ttc), 0) as total
+      `SELECT COALESCE(SUM(CASE WHEN mode_paiement = 'credit' AND type_document != 'paiement_credit' THEN COALESCE(montant_paye, 0) ELSE montant_ttc END), 0) as total
        FROM ventes
        WHERE magasin_id = $1 
        AND date_vente >= DATE_TRUNC('week', CURRENT_DATE) - INTERVAL '1 week'
@@ -304,7 +300,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response) => {
        AND type_document != 'depense'
        AND (type_document = 'paiement_cheque'
             OR (type_document = 'paiement_credit' AND mode_paiement != 'cheque')
-            OR (mode_paiement IS NULL OR (mode_paiement != 'credit' AND mode_paiement != 'cheque')))`,
+            OR mode_paiement IS NULL OR mode_paiement != 'cheque' OR mode_paiement = 'credit')`,
       [magasinId]
     );
 

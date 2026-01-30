@@ -34,6 +34,7 @@ const POS = () => {
   const [loading, setLoading] = useState(false);
   const [loadingProduits, setLoadingProduits] = useState(false);
   const [showPaiementCredit, setShowPaiementCredit] = useState(false);
+  const [montantPaiementCredit, setMontantPaiementCredit] = useState(0); // montant que le client veut payer (peut être partiel)
   const [showDepense, setShowDepense] = useState(false);
   const [categorieDepense, setCategorieDepense] = useState('');
   const [montantDepense, setMontantDepense] = useState(0);
@@ -45,6 +46,7 @@ const POS = () => {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1); // Stepper mobile: 1=Client, 2=Produits, 3=Panier, 4=Paiement
   const searchInputRef = useRef<HTMLInputElement>(null);
   const clientSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paiementSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (search.length >= 2) {
@@ -155,6 +157,21 @@ const POS = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
+
+  // Sur desktop: faire défiler vers le formulaire paiement crédit quand on l'ouvre
+  useEffect(() => {
+    if (showPaiementCredit && clientSelectionne && typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      paiementSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [showPaiementCredit, clientSelectionne]);
+
+  // Initialiser le montant à payer (crédit) quand on ouvre le formulaire
+  useEffect(() => {
+    if (showPaiementCredit && clientSelectionne) {
+      const solde = Number(clientSelectionne.solde) || 0;
+      setMontantPaiementCredit(solde);
+    }
+  }, [showPaiementCredit, clientSelectionne?.id]);
 
   const selectClient = (client: Client) => {
     setClientSelectionne(client);
@@ -461,15 +478,24 @@ const POS = () => {
       }
     }
 
-    if (modePaiement === 'especes' && monnaieRecue < (clientSelectionne.solde || 0)) {
-      toast.error('Le montant reçu doit être supérieur ou égal au solde');
+    const soldeClient = Number(clientSelectionne.solde) || 0;
+    if (montantPaiementCredit <= 0) {
+      toast.error('Le montant à payer doit être supérieur à 0');
+      return;
+    }
+    if (montantPaiementCredit > soldeClient) {
+      toast.error('Le montant à payer ne peut pas dépasser le crédit du client');
+      return;
+    }
+    if (modePaiement === 'especes' && monnaieRecue < montantPaiementCredit) {
+      toast.error('Le montant reçu doit être supérieur ou égal au montant à payer');
       return;
     }
 
     setLoading(true);
     try {
       await axios.post(`/admin/clients/${clientSelectionne.id}/paiement-credit`, {
-        montant: clientSelectionne.solde,
+        montant: montantPaiementCredit,
         mode_paiement: modePaiement,
         reference_paiement: referencePaiement || null,
         date_cheque: dateCheque || null,
@@ -481,6 +507,7 @@ const POS = () => {
       const response = await axios.get(`/admin/clients/${clientSelectionne.id}`);
       setClientSelectionne(response.data);
       setShowPaiementCredit(false);
+      setMontantPaiementCredit(0);
       setMonnaieRecue(0);
       setReferencePaiement('');
       setDateCheque('');
@@ -599,7 +626,7 @@ const POS = () => {
                         setShowPaiementCredit(true);
                         setCurrentStep(4);
                       }}
-                      className="w-full mt-2 py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
+                      className="w-full mt-2 py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium flex items-center justify-center lg:hidden"
                     >
                       <CreditCard className="h-4 w-4 mr-2" />
                       Payer le crédit
@@ -1067,7 +1094,7 @@ const POS = () => {
           )}
 
           {/* Totaux et paiement - Desktop toujours visible, Mobile seulement étape 4 */}
-          <div className={`${currentStep === 4 ? 'flex' : 'hidden'} lg:flex flex-col p-2 lg:p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0`}>
+          <div ref={paiementSectionRef} className={`${currentStep === 4 ? 'flex' : 'hidden'} lg:flex flex-col p-2 lg:p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0`}>
             {/* Bouton retour mobile */}
             <div className="lg:hidden mb-2 flex-shrink-0">
               <button
@@ -1078,9 +1105,9 @@ const POS = () => {
                 Retour au panier
               </button>
             </div>
-            {/* Option Payer le crédit (step Paiement) — client avec solde > 0 */}
+            {/* Option Payer le crédit (step Paiement) — mobile uniquement ; sur PC on garde seulement le bouton bleu dans la carte client */}
             {!showPaiementCredit && clientSelectionne && (clientSelectionne.solde || 0) > 0 && (
-              <div className="mb-3 flex-shrink-0">
+              <div className="mb-3 flex-shrink-0 lg:hidden">
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 lg:p-3">
                   <p className="text-xs lg:text-sm text-gray-700 mb-2">
                     Ce client a un crédit de <span className="font-bold text-amber-800">{Number(clientSelectionne.solde).toFixed(2)} MAD</span>.
@@ -1103,6 +1130,7 @@ const POS = () => {
                   <button
                     onClick={() => {
                       setShowPaiementCredit(false);
+                      setMontantPaiementCredit(0);
                       setModePaiement('especes');
                       setMonnaieRecue(0);
                       setReferencePaiement('');
@@ -1115,8 +1143,25 @@ const POS = () => {
                 </div>
                 <div className="bg-white p-4 rounded-lg">
                   <p className="text-sm text-gray-600 mb-2">
-                    Montant à payer: <span className="font-bold">{Number(clientSelectionne.solde).toFixed(2)} MAD</span>
+                    Crédit total: <span className="font-bold">{Number(clientSelectionne.solde).toFixed(2)} MAD</span>
                   </p>
+                  <div className="mb-4">
+                    <label className="block text-sm text-gray-600 mb-2">Montant à payer (peut être partiel):</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={Number(clientSelectionne.solde) || 0}
+                      value={montantPaiementCredit}
+                      onChange={(e) => setMontantPaiementCredit(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                    {montantPaiementCredit > 0 && montantPaiementCredit < (Number(clientSelectionne.solde) || 0) && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Reste en crédit après paiement: {(Number(clientSelectionne.solde) - montantPaiementCredit).toFixed(2)} MAD
+                      </p>
+                    )}
+                  </div>
                   <div className="mb-4">
                     <label className="block text-sm text-gray-600 mb-2">Mode de paiement:</label>
                     <select
@@ -1147,7 +1192,7 @@ const POS = () => {
                       />
                       {monnaieRecue > 0 && (
                         <p className="mt-2 text-sm font-medium">
-                          Monnaie à rendre: {Math.max(0, monnaieRecue - (clientSelectionne.solde || 0)).toFixed(2)} MAD
+                          Monnaie à rendre: {Math.max(0, monnaieRecue - montantPaiementCredit).toFixed(2)} MAD
                         </p>
                       )}
                     </div>

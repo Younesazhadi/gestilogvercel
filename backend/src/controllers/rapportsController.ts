@@ -38,14 +38,13 @@ export const getRapportVentes = async (req: AuthRequest, res: Response) => {
         COUNT(*) as nb_ventes,
         COALESCE(SUM(v.montant_ht), 0) as total_ht,
         COALESCE(SUM(v.montant_tva), 0) as total_tva,
-        COALESCE(SUM(v.montant_ttc), 0) as total_ttc
+        COALESCE(SUM(CASE WHEN v.mode_paiement = 'credit' AND v.type_document != 'paiement_credit' THEN COALESCE(v.montant_paye, 0) ELSE v.montant_ttc END), 0) as total_ttc
       FROM ventes v
       WHERE v.magasin_id = $1
       AND v.statut = 'valide'
       AND (v.type_document = 'paiement_cheque'
            OR (v.type_document = 'paiement_credit' AND v.mode_paiement != 'cheque')
-           OR (v.mode_paiement IS NULL OR (v.mode_paiement != 'credit' AND v.mode_paiement != 'cheque'))
-           ))
+           OR v.mode_paiement IS NULL OR v.mode_paiement != 'cheque' OR v.mode_paiement = 'credit')
       ${dateFilter}
       GROUP BY ${groupByClause}
       ORDER BY periode ASC
@@ -150,10 +149,10 @@ export const getRapportFinancier = async (req: AuthRequest, res: Response) => {
       params.push(date_debut, date_fin);
     }
 
-    // CA total (exclure les ventes à crédit et les chèques non payés)
+    // CA total (inclut la part payée des ventes à crédit)
     const caQuery = `
       SELECT 
-        COALESCE(SUM(v.montant_ttc), 0) as ca_total,
+        COALESCE(SUM(CASE WHEN v.mode_paiement = 'credit' AND v.type_document != 'paiement_credit' THEN COALESCE(v.montant_paye, 0) ELSE v.montant_ttc END), 0) as ca_total,
         COALESCE(SUM(v.montant_ht), 0) as ca_ht,
         COALESCE(SUM(v.montant_tva), 0) as tva_total
       FROM ventes v
@@ -162,7 +161,7 @@ export const getRapportFinancier = async (req: AuthRequest, res: Response) => {
       AND v.type_document != 'depense'
       AND (v.type_document = 'paiement_cheque'
            OR (v.type_document = 'paiement_credit' AND v.mode_paiement != 'cheque')
-           OR (v.mode_paiement IS NULL OR (v.mode_paiement != 'credit' AND v.mode_paiement != 'cheque')))
+           OR v.mode_paiement IS NULL OR v.mode_paiement != 'cheque' OR v.mode_paiement = 'credit')
       ${dateFilter}
     `;
 
