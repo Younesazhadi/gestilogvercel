@@ -66,7 +66,14 @@ export const createVente = async (req: AuthRequest, res: Response) => {
     const lignesVente = [];
 
     for (const ligne of lignes) {
-      const { produit_id, quantite, prix_unitaire, tva = tva_taux, remise_ligne = 0 } = ligne;
+      const produit_id = ligne.produit_id;
+      const quantite = parseFloat(ligne.quantite);
+      const prix_unitaire = parseFloat(ligne.prix_unitaire);
+      const tva = ligne.tva != null ? parseFloat(ligne.tva) : tva_taux;
+      const remise_ligne = ligne.remise_ligne != null ? parseFloat(ligne.remise_ligne) : 0;
+      if (!Number.isFinite(quantite) || quantite <= 0 || !Number.isFinite(prix_unitaire) || prix_unitaire < 0) {
+        return res.status(400).json({ message: 'Quantité et prix unitaire doivent être des nombres valides (quantité > 0, prix >= 0).' });
+      }
 
       let produitNom = ligne.designation || 'Produit';
       

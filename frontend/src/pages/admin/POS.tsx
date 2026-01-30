@@ -978,14 +978,20 @@ const POS = () => {
                           {editingLigne?.id === ligne.produit_id && editingLigne.field === 'quantite' ? (
                             <input
                               type="number"
+                              step="0.01"
+                              min="0"
                               defaultValue={ligne.quantite}
-                              onBlur={(e) => modifierQuantiteDirecte(ligne.produit_id, parseInt(e.target.value) || 1)}
+                              onBlur={(e) => {
+                                const q = parseFloat((e.target as HTMLInputElement).value);
+                                modifierQuantiteDirecte(ligne.produit_id, Number.isFinite(q) ? q : 0.01);
+                              }}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
-                                  modifierQuantiteDirecte(ligne.produit_id, parseInt((e.target as HTMLInputElement).value) || 1);
+                                  const q = parseFloat((e.target as HTMLInputElement).value);
+                                  modifierQuantiteDirecte(ligne.produit_id, Number.isFinite(q) ? q : 0.01);
                                 }
                               }}
-                              className="w-12 px-1 py-1 border border-gray-300 rounded text-sm text-center"
+                              className="w-14 px-1 py-1 border border-gray-300 rounded text-sm text-center"
                               autoFocus
                             />
                           ) : (
@@ -993,7 +999,7 @@ const POS = () => {
                               className="font-medium w-8 text-center cursor-pointer hover:bg-gray-200 px-1 rounded"
                               onClick={() => setEditingLigne({ id: ligne.produit_id, field: 'quantite' })}
                             >
-                              {ligne.quantite}
+                              {Number(ligne.quantite) % 1 === 0 ? ligne.quantite : Number(ligne.quantite).toFixed(2)}
                             </span>
                           )}
                           <button
@@ -1199,6 +1205,7 @@ const POS = () => {
                     <div className="flex items-center space-x-1.5">
                       <input
                         type="number"
+                        step="0.01"
                         value={remise}
                         onChange={(e) => setRemise(parseFloat(e.target.value) || 0)}
                         min="0"
